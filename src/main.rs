@@ -11,7 +11,11 @@ fn handle_cli(pattern: Pattern, gpa: &mut GPA) {
     match pattern {
         Pattern::Ects => gpa.calc_avg(),
         Pattern::File => gpa.ects_in_file(),
-        Pattern::Overview { filter_by, sort_by } => gpa.overview(filter_by, sort_by),
+        Pattern::Overview {
+            filter_by,
+            sort_by,
+            desc,
+        } => gpa.overview(filter_by, sort_by, desc),
     }
 }
 

@@ -78,7 +78,7 @@ impl GPA {
         );
     }
 
-    pub fn overview(&self, filter_by: Option<FilterBy>, sort_by: Option<SortBy>) {
+    pub fn overview(&self, filter_by: Option<FilterBy>, sort_by: Option<SortBy>, desc: bool) {
         let mut list = self.lectures.clone();
 
         if let Some(f) = filter_by {
@@ -108,6 +108,10 @@ impl GPA {
                     list.sort_by_key(|l| l.ects);
                 }
             }
+        }
+
+        if desc {
+            list.reverse();
         }
 
         println!(

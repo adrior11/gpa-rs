@@ -29,6 +29,9 @@ pub enum Pattern {
 
         #[arg(short = 's', long = "sort", value_enum)]
         sort_by: Option<SortBy>,
+
+        #[arg(short = 'd', long = "desc")]
+        desc: bool,
     },
 }
 
