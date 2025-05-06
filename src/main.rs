@@ -1,6 +1,5 @@
 mod cli;
 mod model;
-mod thesis_parser;
 
 use clap::Parser;
 use cli::{Cli, Pattern};
@@ -12,19 +11,18 @@ fn handle_cli(pattern: Pattern, gpa: &mut GPA) {
     match pattern {
         Pattern::Ects => gpa.calc_avg(),
         Pattern::File => gpa.ects_in_file(),
-        Pattern::Semester { args } => gpa.semester(args),
+        Pattern::Overview { filter_by, sort_by } => gpa.overview(filter_by, sort_by),
     }
 }
 
-fn run() -> Result<(), std::io::Error> {
+fn run() -> Result<(), Box<dyn std::error::Error>> {
     let args = Cli::parse();
+    let mut gpa = GPA::from_file(GPA_FILE_PATH)?;
 
-    let mut gpa = GPA::from_file(GPA_FILE_PATH);
-
-    match args.pattern {
-        Some(pattern) => handle_cli(pattern, &mut gpa),
-        // TODO: replace with help command
-        None => gpa.calc_avg(),
+    if let Some(pattern) = args.pattern {
+        handle_cli(pattern, &mut gpa);
+    } else {
+        gpa.calc_avg();
     }
 
     Ok(())

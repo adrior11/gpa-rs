@@ -1,0 +1,17 @@
+[package]
+name = "gpa-calc"
+version = "0.1.0"
+edition = "2021"
+authors = ["Adrian Schneider <adrian.schneider11@icloud.com>"]
+description = "Rust-powered command-line GPA calculator"
+repository = "https://github.com/adrior11/gpa-rs"
+readme = "README.md"
+keywords = ["university", "gpa", "cli", "rust"]
+categories = ["command-line-utilities"]
+license = "MIT"
+
+[dependencies]
+clap = { version = "4.0", features = ["derive"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0.140"
+colored = "3.0.0"

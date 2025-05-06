@@ -1,4 +1,4 @@
-use clap::{Parser, Subcommand};
+use clap::{ArgGroup, Args, Parser, Subcommand, ValueEnum};
 
 #[derive(Parser)]
 #[command(author, version)]
@@ -15,9 +15,38 @@ pub enum Pattern {
     #[command(alias = "f")]
     File,
 
-    #[command(alias = "s")]
-    Semester {
-        #[arg(value_name = "NUM_SEMESTER")]
-        args: u8,
+    #[command(
+        alias = "o",
+        group(
+            ArgGroup::new("filter_by")
+                .args(&["semester", "grade", "ects"])
+                .multiple(false)
+        )
+    )]
+    Overview {
+        #[clap(flatten)]
+        filter_by: Option<FilterBy>,
+
+        #[arg(short = 's', long = "sort", value_enum)]
+        sort_by: Option<SortBy>,
     },
+}
+
+#[derive(Clone, Debug, Args)]
+pub struct FilterBy {
+    #[arg(short = 'n', long = "semester", group = "filter_by")]
+    pub semester: Option<u8>,
+
+    #[arg(short = 'g', long = "grade", group = "filter_by")]
+    pub grade: Option<f32>,
+
+    #[arg(short = 'e', long = "ects", group = "filter_by")]
+    pub ects: Option<u8>,
+}
+
+#[derive(Clone, ValueEnum)]
+pub enum SortBy {
+    Semester,
+    Grade,
+    Ects,
 }
