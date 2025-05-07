@@ -1,9 +1,9 @@
 mod cli;
-mod model;
+mod gpa;
 
 use clap::Parser;
 use cli::{Cli, Pattern};
-use model::GPA;
+use gpa::GPA;
 
 const GPA_FILE_PATH: &str = "src/data/gpa.json";
 

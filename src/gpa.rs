@@ -81,17 +81,19 @@ impl GPA {
     pub fn overview(&self, filter_by: Option<FilterBy>, sort_by: Option<SortBy>, desc: bool) {
         let mut list = self.lectures.clone();
 
-        if let Some(f) = filter_by {
+        if let Some(ref f) = filter_by {
             if let Some(sem) = f.semester {
                 list.retain(|lec| lec.semester == sem);
             } else if let Some(max_grade) = f.grade {
                 list.retain(|lec| lec.grade.is_some_and(|g| g == max_grade));
             } else if let Some(ects) = f.ects {
                 list.retain(|lec| lec.ects == ects);
+            } else if let Some(completed) = f.completed {
+                list.retain(|lec| lec.completed == completed);
             }
         }
 
-        if let Some(key) = sort_by {
+        if let Some(ref key) = sort_by {
             match key {
                 SortBy::Grade => {
                     list.sort_by(|a, b| match (a.grade, b.grade) {
@@ -107,6 +109,9 @@ impl GPA {
                 SortBy::Ects => {
                     list.sort_by_key(|l| l.ects);
                 }
+                SortBy::Completed => {
+                    list.sort_by_key(|l| l.completed);
+                }
             }
         }
 
@@ -120,7 +125,10 @@ impl GPA {
         );
         println!("{}", "-".repeat(63));
 
+        let mut combined_ects = 0;
         for lec in list {
+            combined_ects += lec.ects;
+
             let grade_str = match lec.grade {
                 Some(g) if g <= self.target_grade => format!("{:.1}", g).green(),
                 Some(g) => format!("{:.1}", g).red(),
@@ -134,7 +142,13 @@ impl GPA {
             );
         }
 
+        if filter_by.is_some() || sort_by.is_some() {
+            println!("\nECTS in selection: {}", combined_ects);
+        } else {
+            println!()
+        }
+
         let total: u8 = self.lectures.iter().map(|l| l.ects).sum();
-        println!("\nTotal ECTS in file: {}", total);
+        println!("Total ECTS in file: {}", total);
     }
 }

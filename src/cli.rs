@@ -19,7 +19,7 @@ pub enum Pattern {
         alias = "o",
         group(
             ArgGroup::new("filter_by")
-                .args(&["semester", "grade", "ects"])
+                .args(&["semester", "grade", "ects", "completed"])
                 .multiple(false)
         )
     )]
@@ -45,6 +45,9 @@ pub struct FilterBy {
 
     #[arg(short = 'e', long = "ects", group = "filter_by")]
     pub ects: Option<u8>,
+
+    #[arg(short = 'c', long = "completed", group = "filter_by")]
+    pub completed: Option<bool>,
 }
 
 #[derive(Clone, ValueEnum)]
@@ -52,4 +55,5 @@ pub enum SortBy {
     Semester,
     Grade,
     Ects,
+    Completed,
 }
