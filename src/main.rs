@@ -10,13 +10,13 @@ const GPA_FILE_PATH: &str = "src/data/gpa.json";
 
 fn handle_cli(pattern: Pattern, gpa: &mut GPA) {
     match pattern {
-        Pattern::Summary => gpa.summary(),
         Pattern::File => gpa.credits_in_file(),
         Pattern::Overview {
             filter_by,
             sort_by,
             desc,
-        } => gpa.overview(filter_by, sort_by, desc),
+            short,
+        } => gpa.overview(filter_by, sort_by, desc, short),
     }
 }
 
@@ -27,7 +27,8 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
     if let Some(pattern) = args.pattern {
         handle_cli(pattern, &mut gpa);
     } else {
-        gpa.summary();
+        // Default: cargo run -- o -S
+        gpa.overview(None, None, false, true);
     }
 
     Ok(())
