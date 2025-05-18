@@ -28,7 +28,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
         handle_cli(pattern, &mut gpa);
     } else {
         // Default: cargo run -- o -S
-        gpa.overview(None, None, false, true);
+        gpa.overview(None, vec![], false, true);
     }
 
     Ok(())

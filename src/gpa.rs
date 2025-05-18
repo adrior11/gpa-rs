@@ -45,7 +45,7 @@ impl GPA {
     pub fn overview(
         &self,
         filter_by: Option<FilterBy>,
-        sort_by: Option<SortBy>,
+        sort_by: Vec<SortBy>,
         desc: bool,
         short: bool,
     ) {
@@ -55,7 +55,7 @@ impl GPA {
             .filter(|l| filter_by.as_ref().is_none_or(|f| f.matches(l)))
             .collect();
 
-        if let Some(key) = sort_by {
+        for key in sort_by.iter().rev() {
             rows.sort_by(|a, b| key.compare(a, b));
         }
         if desc {
@@ -175,19 +175,27 @@ impl Stats {
 
 impl FilterBy {
     pub fn matches(&self, lec: &Lecture) -> bool {
-        match *self {
-            Self {
-                semester: Some(s), ..
-            } => lec.semester == s,
-            Self { grade: Some(g), .. } => lec.grade == Some(g),
-            Self {
-                credits: Some(c), ..
-            } => lec.credits == c,
-            Self {
-                completed: Some(b), ..
-            } => lec.completed == b,
-            _ => true,
+        if let Some(s) = self.semester {
+            if lec.semester != s {
+                return false;
+            }
         }
+        if let Some(g) = self.grade {
+            if lec.grade != Some(g) {
+                return false;
+            }
+        }
+        if let Some(c) = self.credits {
+            if lec.credits != c {
+                return false;
+            }
+        }
+        if let Some(b) = self.completed {
+            if lec.completed != b {
+                return false;
+            }
+        }
+        true
     }
 }
 

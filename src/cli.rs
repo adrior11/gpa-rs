@@ -1,4 +1,4 @@
-use clap::{ArgGroup, Args, Parser, Subcommand, ValueEnum};
+use clap::{ArgAction, ArgGroup, Args, Parser, Subcommand, ValueEnum};
 
 #[derive(Parser)]
 #[command(author, version)]
@@ -19,15 +19,15 @@ pub enum Pattern {
         group(
             ArgGroup::new("filter_by")
                 .args(&["semester", "grade", "credits", "completed"])
-                .multiple(false)
+                .multiple(true)
         )
     )]
     Overview {
         #[clap(flatten)]
         filter_by: Option<FilterBy>,
 
-        #[arg(short = 's', long = "sort", value_enum)]
-        sort_by: Option<SortBy>,
+        #[arg(short = 's', long = "sort", value_enum, action = ArgAction::Append)]
+        sort_by: Vec<SortBy>,
 
         #[arg(short = 'd', long = "desc")]
         desc: bool,
