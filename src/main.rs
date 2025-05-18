@@ -1,5 +1,6 @@
 mod cli;
 mod gpa;
+mod utils;
 
 use clap::Parser;
 use cli::{Cli, Pattern};
@@ -9,8 +10,8 @@ const GPA_FILE_PATH: &str = "src/data/gpa.json";
 
 fn handle_cli(pattern: Pattern, gpa: &mut GPA) {
     match pattern {
-        Pattern::Ects => gpa.calc_avg(),
-        Pattern::File => gpa.ects_in_file(),
+        Pattern::Summary => gpa.summary(),
+        Pattern::File => gpa.credits_in_file(),
         Pattern::Overview {
             filter_by,
             sort_by,
@@ -26,7 +27,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
     if let Some(pattern) = args.pattern {
         handle_cli(pattern, &mut gpa);
     } else {
-        gpa.calc_avg();
+        gpa.summary();
     }
 
     Ok(())

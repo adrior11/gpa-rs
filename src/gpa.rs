@@ -6,7 +6,7 @@ use crate::cli::{FilterBy, SortBy};
 #[allow(clippy::upper_case_acronyms)]
 #[derive(Deserialize, Debug)]
 pub struct GPA {
-    pub target_ects: u8,
+    pub target_credits: u8,
     pub target_grade: f32,
     pub lectures: Vec<Lecture>,
 }
@@ -14,7 +14,7 @@ pub struct GPA {
 #[derive(Deserialize, Debug, Clone)]
 pub struct Lecture {
     pub title: String,
-    pub ects: u8,
+    pub credits: u8,
     pub semester: u8,
     pub grade: Option<f32>,
     pub completed: bool,
@@ -27,26 +27,26 @@ impl GPA {
         Ok(gpa)
     }
 
-    pub fn calc_avg(&self) {
+    pub fn summary(&self) {
         let mut weighted = 0.0;
-        let mut graded_ects = 0u8;
-        let mut points_only_ects = 0u8;
+        let mut graded_credits = 0u8;
+        let mut points_only_credits = 0u8;
 
         for lec in &self.lectures {
             match lec.grade {
                 Some(g) => {
-                    weighted += g * lec.ects as f32;
-                    graded_ects += lec.ects;
+                    weighted += g * lec.credits as f32;
+                    graded_credits += lec.credits;
                 }
                 None if lec.completed => {
-                    points_only_ects += lec.ects;
+                    points_only_credits += lec.credits;
                 }
                 _ => {}
             }
         }
 
-        let avg = if graded_ects > 0 {
-            weighted / graded_ects as f32
+        let avg = if graded_credits > 0 {
+            weighted / graded_credits as f32
         } else {
             0.0
         };
@@ -57,24 +57,27 @@ impl GPA {
             format!("{:.2}", avg).red()
         };
 
-        let total_ects = graded_ects + points_only_ects;
-        println!("Average over {} ECTS: {}", graded_ects, avg_str);
+        let total_credits = graded_credits + points_only_credits;
         println!(
-            "ECTS: {}/{} (graded {}/{} + points-only {}/{})",
-            total_ects,
-            self.target_ects,
-            graded_ects,
-            self.target_ects,
-            points_only_ects,
-            self.target_ects,
+            "Average over {} achieved Credits: {}",
+            graded_credits, avg_str
+        );
+        println!(
+            "Credits: {}/{} (graded {}/{} + points-only {}/{})",
+            total_credits,
+            self.target_credits,
+            graded_credits,
+            self.target_credits,
+            points_only_credits,
+            self.target_credits,
         );
     }
 
-    pub fn ects_in_file(&self) {
-        let combined_ects: u8 = self.lectures.iter().map(|l| l.ects).sum();
+    pub fn credits_in_file(&self) {
+        let combined_credits: u8 = self.lectures.iter().map(|l| l.credits).sum();
         println!(
-            "You've added courses with {} ects combined, targeting {} ects.",
-            combined_ects, self.target_ects
+            "You've added courses with {} credits combined, targeting {} credits.",
+            combined_credits, self.target_credits
         );
     }
 
@@ -86,8 +89,8 @@ impl GPA {
                 list.retain(|lec| lec.semester == sem);
             } else if let Some(max_grade) = f.grade {
                 list.retain(|lec| lec.grade.is_some_and(|g| g == max_grade));
-            } else if let Some(ects) = f.ects {
-                list.retain(|lec| lec.ects == ects);
+            } else if let Some(credits) = f.credits {
+                list.retain(|lec| lec.credits == credits);
             } else if let Some(completed) = f.completed {
                 list.retain(|lec| lec.completed == completed);
             }
@@ -107,7 +110,7 @@ impl GPA {
                     list.sort_by_key(|l| l.semester);
                 }
                 SortBy::Ects => {
-                    list.sort_by_key(|l| l.ects);
+                    list.sort_by_key(|l| l.credits);
                 }
                 SortBy::Completed => {
                     list.sort_by_key(|l| l.completed);
@@ -120,14 +123,14 @@ impl GPA {
         }
 
         println!(
-            "{:<40} {:>4} {:>4} {:>6} {:>3}",
-            "Title", "ECTS", "Sem", "Grade", "✓"
+            "{:<40} {:>7} {:>4} {:>6} {:>3}",
+            "Title", "Credits", "Sem", "Grade", "✓"
         );
-        println!("{}", "-".repeat(63));
+        println!("{}", "-".repeat(66));
 
-        let mut combined_ects = 0;
+        let mut combined_credits = 0;
         for lec in list {
-            combined_ects += lec.ects;
+            combined_credits += lec.credits;
 
             let grade_str = match lec.grade {
                 Some(g) if g <= self.target_grade => format!("{:.1}", g).green(),
@@ -137,18 +140,18 @@ impl GPA {
             let done_flag = if lec.completed { "✓" } else { "✗" };
 
             println!(
-                "{:<40} {:>4} {:>4} {:>6} {:>3}",
-                lec.title, lec.ects, lec.semester, grade_str, done_flag
+                "{:<40} {:>7} {:>4} {:>6} {:>3}",
+                lec.title, lec.credits, lec.semester, grade_str, done_flag
             );
         }
 
         if filter_by.is_some() || sort_by.is_some() {
-            println!("\nECTS in selection: {}", combined_ects);
+            println!("\nCredits in selection: {}", combined_credits);
         } else {
             println!()
         }
 
-        let total: u8 = self.lectures.iter().map(|l| l.ects).sum();
-        println!("Total ECTS in file: {}", total);
+        let total: u8 = self.lectures.iter().map(|l| l.credits).sum();
+        println!("⇢ Total Credits in file: {}", total);
     }
 }

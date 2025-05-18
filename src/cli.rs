@@ -9,8 +9,8 @@ pub struct Cli {
 
 #[derive(Subcommand)]
 pub enum Pattern {
-    #[command(alias = "e")]
-    Ects,
+    #[command(alias = "s")]
+    Summary,
 
     #[command(alias = "f")]
     File,
@@ -19,10 +19,11 @@ pub enum Pattern {
         alias = "o",
         group(
             ArgGroup::new("filter_by")
-                .args(&["semester", "grade", "ects", "completed"])
+                .args(&["semester", "grade", "credits", "completed"])
                 .multiple(false)
         )
     )]
+    // TODO: Set as default command
     Overview {
         #[clap(flatten)]
         filter_by: Option<FilterBy>,
@@ -30,6 +31,7 @@ pub enum Pattern {
         #[arg(short = 's', long = "sort", value_enum)]
         sort_by: Option<SortBy>,
 
+        /// Show the courses in descending order (default is ascending).
         #[arg(short = 'd', long = "desc")]
         desc: bool,
     },
@@ -43,11 +45,11 @@ pub struct FilterBy {
     #[arg(short = 'g', long = "grade", group = "filter_by")]
     pub grade: Option<f32>,
 
-    #[arg(short = 'e', long = "ects", group = "filter_by")]
-    pub ects: Option<u8>,
+    #[arg(short = 'c', long = "credits", group = "filter_by")]
+    pub credits: Option<u8>,
 
-    #[arg(short = 'c', long = "completed", group = "filter_by")]
-    pub completed: Option<bool>,
+    #[arg(short = 'x', long = "completed", group = "filter_by")]
+    pub completed: Option<bool>, // TODO: rename short
 }
 
 #[derive(Clone, ValueEnum)]
