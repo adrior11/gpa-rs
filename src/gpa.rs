@@ -175,6 +175,11 @@ impl Stats {
 
 impl FilterBy {
     pub fn matches(&self, lec: &Lecture) -> bool {
+        if let Some(t) = &self.title {
+            if !lec.title.contains(t) {
+                return false;
+            }
+        }
         if let Some(s) = self.semester {
             if lec.semester != s {
                 return false;

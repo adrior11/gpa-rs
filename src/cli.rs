@@ -39,6 +39,9 @@ pub enum Pattern {
 
 #[derive(Clone, Debug, Args)]
 pub struct FilterBy {
+    #[arg(short = 't', long = "title", group = "filter_by")]
+    pub title: Option<String>,
+
     #[arg(short = 'n', long = "semester", group = "filter_by")]
     pub semester: Option<u8>,
 
