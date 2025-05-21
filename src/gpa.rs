@@ -1,18 +1,32 @@
 use colored::Colorize;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
+use std::fs;
 
-use crate::cli::{FilterBy, SortBy};
+use crate::{
+    cli::{FilterBy, SortBy},
+    file_util,
+};
 
 #[allow(clippy::upper_case_acronyms)]
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Serialize, Debug)]
 pub struct GPA {
     pub target_credits: u8,
     pub target_grade: f32,
     pub lectures: Vec<Lecture>,
 }
 
-#[derive(Deserialize, Debug, Clone)]
+impl Default for GPA {
+    fn default() -> Self {
+        Self {
+            target_credits: 180,
+            target_grade: 4.0,
+            lectures: Vec::new(),
+        }
+    }
+}
+
+#[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct Lecture {
     pub title: String,
     pub credits: u8,
@@ -30,10 +44,6 @@ struct Stats {
 }
 
 impl GPA {
-    pub fn from_file(path: &str) -> Result<Self, Box<dyn std::error::Error>> {
-        Ok(serde_json::from_str(&std::fs::read_to_string(path)?)?)
-    }
-
     pub fn credits_in_file(&self) {
         let sum: u8 = self.lectures.iter().map(|l| l.credits).sum();
         println!(
@@ -145,6 +155,12 @@ impl GPA {
         if let Some(len) = shown_rows {
             println!("  {}", format!("({len} course rows shown)").dimmed());
         }
+    }
+
+    pub fn _save(&self) -> Result<(), Box<dyn std::error::Error>> {
+        let json = serde_json::to_string_pretty(self)?;
+        fs::write(file_util::get_config_path(), json)?;
+        Ok(())
     }
 }
 

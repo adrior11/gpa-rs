@@ -1,12 +1,10 @@
 mod cli;
+mod file_util;
 mod gpa;
-mod utils;
 
 use clap::Parser;
 use cli::{Cli, Pattern};
 use gpa::GPA;
-
-const GPA_FILE_PATH: &str = "src/data/gpa.json";
 
 fn handle_cli(pattern: Pattern, gpa: &mut GPA) {
     match pattern {
@@ -22,7 +20,7 @@ fn handle_cli(pattern: Pattern, gpa: &mut GPA) {
 
 fn run() -> Result<(), Box<dyn std::error::Error>> {
     let args = Cli::parse();
-    let mut gpa = GPA::from_file(GPA_FILE_PATH)?;
+    let mut gpa = file_util::load_or_create_config()?;
 
     if let Some(pattern) = args.pattern {
         handle_cli(pattern, &mut gpa);
