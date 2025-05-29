@@ -7,7 +7,6 @@ use clap::Parser;
 
 use cli::{Cli, Pattern};
 use gpa::GPA;
-use tui::Tui;
 
 fn was_interrupted(err: &(dyn std::error::Error + 'static)) -> bool {
     if let Some(ioe) = err.downcast_ref::<std::io::Error>() {
@@ -24,7 +23,7 @@ fn handle_cli(pattern: Pattern, gpa: &mut GPA) -> Result<(), Box<dyn std::error:
             desc,
             short,
         } => gpa.overview(filter_by, sort_by, desc, short),
-        Pattern::Tui => match Tui::start(gpa) {
+        Pattern::Tui => match tui::start(gpa) {
             Err(e) if was_interrupted(&*e) => Ok(()), // swallow Esc/Ctrl-C
             other => other,
         }?,
