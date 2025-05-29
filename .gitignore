@@ -16,8 +16,5 @@ target/
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 #.idea/
 
-# Local gpa data
-**/src/data
-
 # Todo file
 TODO.md

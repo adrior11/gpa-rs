@@ -1,62 +1,64 @@
-use clap::{ArgAction, ArgGroup, Args, Parser, Subcommand, ValueEnum};
+use clap::{ArgAction, Args, Parser, Subcommand, ValueEnum};
 
+/// GPA-RS – personal GPA tracker
 #[derive(Parser)]
-#[command(author, version)]
+#[command(author, version, about, long_about = None)]
 pub struct Cli {
     #[command(subcommand)]
-    pub pattern: Option<Pattern>,
+    pub command: Option<Command>,
+
+    #[clap(flatten)]
+    pub filter: Option<FilterBy>,
+
+    /// Order by column (repeatable)
+    #[arg(short, long, value_enum, action = ArgAction::Append)]
+    pub order_by: Vec<OrderBy>,
+
+    /// Reverse the final order
+    #[arg(short, long)]
+    pub reverse: bool,
+
+    /// Show only stats (hide the rows)
+    #[arg(short, long)]
+    pub short: bool,
 }
 
 #[derive(Subcommand)]
-pub enum Pattern {
-    #[command(
-        alias = "o", // TODO: omit
-        subcommand_negates_reqs = true,
-        args_conflicts_with_subcommands = true,
-        group(
-            ArgGroup::new("filter_by")
-                .args(&["semester", "grade", "credits", "completed"])
-                .multiple(true)
-        )
-    )]
-    Overview {
-        #[clap(flatten)]
-        filter_by: Option<FilterBy>,
-
-        #[arg(short = 's', long = "sort", value_enum, action = ArgAction::Append)]
-        sort_by: Vec<SortBy>,
-
-        #[arg(short = 'd', long = "desc")]
-        desc: bool,
-
-        #[arg(short = 'S', long = "short")]
-        short: bool,
-    },
-
-    #[command(alias = "t")]
+pub enum Command {
+    /// Interactive text-user-interface
     Tui,
 }
 
 #[derive(Clone, Debug, Args)]
+#[group(
+    id = "filter_by",
+    multiple = true,
+    args = ["semester", "grade", "credits", "completed"]
+)]
 pub struct FilterBy {
-    #[arg(short = 't', long = "title", group = "filter_by")]
+    /// Filter: title contains <STRING>
+    #[arg(short, long, group = "filter_by")]
     pub title: Option<String>,
 
-    #[arg(short = 'n', long = "semester", group = "filter_by")]
+    /// Filter: semester equals <NUM>
+    #[arg(short = 'n', long, group = "filter_by")]
     pub semester: Option<u16>,
 
-    #[arg(short = 'g', long = "grade", group = "filter_by")]
+    /// Filter: grade equals <DECIMAL>
+    #[arg(short, long, group = "filter_by")]
     pub grade: Option<f32>,
 
-    #[arg(short = 'c', long = "credits", group = "filter_by")]
+    /// Filter: credits equals <NUM>
+    #[arg(short, long, group = "filter_by")]
     pub credits: Option<u16>,
 
-    #[arg(short = 'C', long = "completed", group = "filter_by")]
+    /// Filter: completed state
+    #[arg(short = 'd', long, group = "filter_by")]
     pub completed: Option<bool>,
 }
 
 #[derive(Clone, ValueEnum)]
-pub enum SortBy {
+pub enum OrderBy {
     Title,
     Credits,
     Semester,

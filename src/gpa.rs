@@ -5,7 +5,7 @@ use colored::Colorize;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    cli::{FilterBy, SortBy},
+    cli::{FilterBy, OrderBy},
     file_util,
 };
 
@@ -94,7 +94,7 @@ impl GPA {
     pub fn overview(
         &self,
         filter_by: Option<FilterBy>,
-        sort_by: Vec<SortBy>,
+        sort_by: Vec<OrderBy>,
         desc: bool,
         short: bool,
     ) {
@@ -125,11 +125,6 @@ impl GPA {
 
         self.print_average(&stats);
         self.print_progress(&stats, &filter_by);
-
-        if filter_by.is_some() && !short {
-            let rows_str = format!("({} course rows shown)", rows.len()).dimmed();
-            println!("{rows_str}");
-        }
     }
 
     fn print_header(&self) {
@@ -278,19 +273,19 @@ impl FilterBy {
     }
 }
 
-impl SortBy {
+impl OrderBy {
     pub fn compare(&self, a: &Lecture, b: &Lecture) -> Ordering {
         match self {
-            SortBy::Title => a.title.cmp(&b.title),
-            SortBy::Credits => a.credits.cmp(&b.credits),
-            SortBy::Semester => a.semester.cmp(&b.semester),
-            SortBy::Grade => match (a.grade, b.grade) {
+            OrderBy::Title => a.title.cmp(&b.title),
+            OrderBy::Credits => a.credits.cmp(&b.credits),
+            OrderBy::Semester => a.semester.cmp(&b.semester),
+            OrderBy::Grade => match (a.grade, b.grade) {
                 (Some(ga), Some(gb)) => ga.partial_cmp(&gb).unwrap_or(Ordering::Equal),
                 (Some(_), None) => Ordering::Less,
                 (None, Some(_)) => Ordering::Greater,
                 (None, None) => Ordering::Equal,
             },
-            SortBy::Completed => a.completed.cmp(&b.completed),
+            OrderBy::Completed => a.completed.cmp(&b.completed),
         }
     }
 }
