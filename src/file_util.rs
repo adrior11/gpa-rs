@@ -14,12 +14,6 @@ pub fn get_config_path() -> PathBuf {
     path
 }
 
-pub fn ensure_config_dir() -> std::io::Result<()> {
-    let mut path = config_dir().expect("Could not find gpa-calc directory");
-    path.push(APP_NAME);
-    fs::create_dir_all(&path)
-}
-
 pub fn load_or_create_config() -> Result<GPA, Box<dyn std::error::Error>> {
     let config_path = get_config_path();
 
@@ -32,4 +26,10 @@ pub fn load_or_create_config() -> Result<GPA, Box<dyn std::error::Error>> {
 
     let json = fs::read_to_string(config_path)?;
     Ok(serde_json::from_str(&json)?)
+}
+
+fn ensure_config_dir() -> std::io::Result<()> {
+    let mut path = config_dir().expect("Could not find gpa-calc directory");
+    path.push(APP_NAME);
+    fs::create_dir_all(&path)
 }

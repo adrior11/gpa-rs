@@ -9,16 +9,25 @@ use cli::{Cli, Pattern};
 use gpa::GPA;
 use tui::Tui;
 
+fn was_interrupted(err: &(dyn std::error::Error + 'static)) -> bool {
+    if let Some(ioe) = err.downcast_ref::<std::io::Error>() {
+        return ioe.kind() == std::io::ErrorKind::Interrupted;
+    }
+    err.source().is_some_and(was_interrupted)
+}
+
 fn handle_cli(pattern: Pattern, gpa: &mut GPA) -> Result<(), Box<dyn std::error::Error>> {
     match pattern {
-        Pattern::File => gpa.credits_in_file(),
         Pattern::Overview {
             filter_by,
             sort_by,
             desc,
             short,
         } => gpa.overview(filter_by, sort_by, desc, short),
-        Pattern::Tui => Tui::start(gpa)?,
+        Pattern::Tui => match Tui::start(gpa) {
+            Err(e) if was_interrupted(&*e) => Ok(()), // swallow Esc/Ctrl-C
+            other => other,
+        }?,
     };
     Ok(())
 }

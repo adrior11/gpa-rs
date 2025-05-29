@@ -9,9 +9,6 @@ pub struct Cli {
 
 #[derive(Subcommand)]
 pub enum Pattern {
-    #[command(alias = "f")]
-    File,
-
     #[command(
         alias = "o", // TODO: omit
         subcommand_negates_reqs = true,
@@ -46,13 +43,13 @@ pub struct FilterBy {
     pub title: Option<String>,
 
     #[arg(short = 'n', long = "semester", group = "filter_by")]
-    pub semester: Option<u8>,
+    pub semester: Option<u16>,
 
     #[arg(short = 'g', long = "grade", group = "filter_by")]
     pub grade: Option<f32>,
 
     #[arg(short = 'c', long = "credits", group = "filter_by")]
-    pub credits: Option<u8>,
+    pub credits: Option<u16>,
 
     #[arg(short = 'C', long = "completed", group = "filter_by")]
     pub completed: Option<bool>,
