@@ -1,12 +1,12 @@
 [package]
-name = "gpa-calc"
+name = "gpa-rs"
 version = "0.1.0"
 edition = "2021"
 authors = ["Adrian Schneider <adrian.schneider11@icloud.com>"]
-description = "Rust-powered command-line GPA calculator"
+description = "Rust-powered personal command-line GPA tracker"
 repository = "https://github.com/adrior11/gpa-rs"
 readme = "README.md"
-keywords = ["university", "gpa", "cli", "rust"]
+keywords = ["university", "gpa", "cli"]
 categories = ["command-line-utilities"]
 license = "MIT"
 

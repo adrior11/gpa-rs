@@ -4,11 +4,11 @@ use dirs::config_dir;
 
 use crate::gpa::GPA;
 
-const APP_NAME: &str = "gpa-calc";
+const APP_NAME: &str = "gpa-rs";
 const CONFIG_FILE: &str = "gpa.json";
 
 pub fn get_config_path() -> PathBuf {
-    let mut path = config_dir().expect("Could not find gpa-calc directory");
+    let mut path = config_dir().expect("Could not find gpa-rs directory");
     path.push(APP_NAME);
     path.push(CONFIG_FILE);
     path
@@ -29,7 +29,7 @@ pub fn load_or_create_config() -> Result<GPA, Box<dyn std::error::Error>> {
 }
 
 fn ensure_config_dir() -> std::io::Result<()> {
-    let mut path = config_dir().expect("Could not find gpa-calc directory");
+    let mut path = config_dir().expect("Could not find gpa-rs directory");
     path.push(APP_NAME);
     fs::create_dir_all(&path)
 }

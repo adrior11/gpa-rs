@@ -213,7 +213,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "gpa-calc"
+name = "gpa-rs"
 version = "0.1.0"
 dependencies = [
  "anyhow",
