@@ -1,6 +1,6 @@
 use std::{cmp::Ordering, fs};
 
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use colored::Colorize;
 use serde::{Deserialize, Serialize};
 
@@ -73,7 +73,7 @@ impl GPA {
     pub fn get_lecture_mut(&mut self, idx: usize) -> Result<&mut Lecture> {
         self.lectures
             .get_mut(idx)
-            .ok_or_else(|| anyhow!("No lecture at index {idx}"))
+            .ok_or_else(|| anyhow::anyhow!("No lecture at index {idx}"))
     }
 
     pub fn add_lecture(&mut self, lec: Lecture) -> Result<()> {
@@ -87,7 +87,7 @@ impl GPA {
             self.lectures.remove(idx);
             self.save()
         } else {
-            Err(anyhow!("No lecture at index {idx}"))
+            Err(anyhow::anyhow!("No lecture at index {idx}"))
         }
     }
 
@@ -185,8 +185,9 @@ impl GPA {
     }
 
     fn progress_bar(&self, current: u16, total: u16, width: usize) -> String {
-        let total = total.max(1); // avoid div-by-zero
-        let filled = ((current as f32 / total as f32) * width as f32).round() as usize;
+        // avoid div-by-zero and clamp ratio to [0, 1]
+        let ratio = (current as f32 / total.max(1) as f32).min(1.0);
+        let filled = (ratio * width as f32).round() as usize;
         let done = "█".repeat(filled).cyan();
         let rest = "░".repeat(width - filled).dimmed();
         format!("[{}{}]", done, rest)

@@ -1,4 +1,3 @@
-// TODO: add precise validation
 use anyhow::Result;
 use cliclack::{Confirm, Input, MultiSelect, Select};
 use colored::Colorize;
@@ -50,12 +49,23 @@ fn add(gpa: &mut GPA) -> Result<()> {
 
     let semester: u16 = Input::new("Semester number:").placeholder("1").interact()?;
 
-    let grade: Option<f32> =
+    let grade_str: String =
         Input::new(format!("Grade: {}", "(leave blank if not graded)".dimmed()))
             .required(false)
-            .interact::<String>()?
-            .parse()
-            .ok();
+            .validate(|s: &String| {
+                if s.trim().is_empty() {
+                    return Ok(());
+                }
+                parse_non_negative_grade(s)
+                    .map(|_| ())
+                    .map_err(|e| e.to_string())
+            })
+            .interact()?;
+    let grade = if grade_str.trim().is_empty() {
+        None
+    } else {
+        Some(parse_non_negative_grade(&grade_str)?)
+    };
 
     let completed: bool = Confirm::new("Mark course as completed?")
         .initial_value(grade.is_some())
@@ -154,13 +164,28 @@ fn edit(gpa: &mut GPA) -> Result<()> {
             .unwrap_or(lec.semester);
     }
     if fields.contains(&"grade") {
-        let g: Option<f32> =
+        let grade_str: String =
             Input::new(format!("New grade: {}", "(leave blank to clear)".dimmed()))
                 .required(false)
-                .interact::<String>()?
-                .parse()
-                .ok();
-        lec.grade = g;
+                .placeholder(&if let Some(g) = lec.grade {
+                    format!("{:.2}", g)
+                } else {
+                    "".to_string()
+                })
+                .validate(|s: &String| {
+                    if s.trim().is_empty() {
+                        return Ok(());
+                    }
+                    parse_non_negative_grade(s)
+                        .map(|_| ())
+                        .map_err(|e| e.to_string())
+                })
+                .interact()?;
+        lec.grade = if grade_str.trim().is_empty() {
+            None
+        } else {
+            Some(parse_non_negative_grade(&grade_str)?)
+        };
     }
     if fields.contains(&"completed") {
         lec.completed = Confirm::new("Completed?")
@@ -253,6 +278,14 @@ fn config(gpa: &mut GPA) -> Result<()> {
     if fields.contains(&"target_average") {
         gpa.target_average = Input::new("New target average:")
             .placeholder(&format!("{:.2}", gpa.target_average))
+            .validate(|s: &String| {
+                if s.trim().is_empty() {
+                    return Ok(());
+                }
+                parse_non_negative_grade(s)
+                    .map(|_| ())
+                    .map_err(|e| e.to_string())
+            })
             .interact()?;
     }
     if fields.contains(&"credit_goal") {
@@ -274,6 +307,14 @@ fn config(gpa: &mut GPA) -> Result<()> {
     if fields.contains(&"pass_mark") {
         gpa.grading_system.pass_mark = Input::new("New numeric pass mark:")
             .placeholder(&format!("{:.2}", gpa.grading_system.pass_mark))
+            .validate(|s: &String| {
+                if s.trim().is_empty() {
+                    return Ok(());
+                }
+                parse_non_negative_grade(s)
+                    .map(|_| ())
+                    .map_err(|e| e.to_string())
+            })
             .interact()?;
     }
 
@@ -283,4 +324,18 @@ fn config(gpa: &mut GPA) -> Result<()> {
     }
     let _ = cliclack::outro("Configuration saved.");
     Ok(())
+}
+
+fn parse_non_negative_grade(input: &str) -> Result<f32> {
+    let g: f32 = input
+        .trim()
+        .parse()
+        .map_err(|_| anyhow::anyhow!("Value must be a decimal number"))?;
+    if !g.is_finite() {
+        anyhow::bail!("Value can’t be infinite nor NaN");
+    } else if g.signum() == -1.0 {
+        anyhow::bail!("Value can’t be negative");
+    } else {
+        Ok(g)
+    }
 }

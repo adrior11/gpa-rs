@@ -3,6 +3,7 @@ mod file_util;
 mod gpa;
 mod tui;
 
+use anyhow::Result;
 use clap::Parser;
 
 use cli::{Cli, Command};
@@ -14,7 +15,7 @@ fn was_interrupted(err: &(dyn std::error::Error + 'static)) -> bool {
     err.source().is_some_and(was_interrupted)
 }
 
-fn run() -> anyhow::Result<()> {
+fn run() -> Result<()> {
     let args = Cli::parse();
     let mut gpa = file_util::load_or_create_config()?;
 
