@@ -14,7 +14,7 @@ fn was_interrupted(err: &(dyn std::error::Error + 'static)) -> bool {
     err.source().is_some_and(was_interrupted)
 }
 
-fn run() -> Result<(), Box<dyn std::error::Error>> {
+fn run() -> anyhow::Result<()> {
     let args = Cli::parse();
     let mut gpa = file_util::load_or_create_config()?;
 

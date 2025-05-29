@@ -93,18 +93,18 @@ impl GPA {
 
     pub fn overview(
         &self,
-        filter_by: Option<FilterBy>,
-        sort_by: Vec<OrderBy>,
+        filter: Option<FilterBy>,
+        order_by: Vec<OrderBy>,
         desc: bool,
         short: bool,
     ) {
         let mut rows: Vec<&Lecture> = self
             .lectures
             .iter()
-            .filter(|l| filter_by.as_ref().is_none_or(|f| f.matches(l)))
+            .filter(|l| filter.as_ref().is_none_or(|f| f.matches(l)))
             .collect();
 
-        for key in sort_by.iter().rev() {
+        for key in order_by.iter().rev() {
             rows.sort_by(|a, b| key.compare(a, b));
         }
         if desc {
@@ -124,7 +124,7 @@ impl GPA {
         }
 
         self.print_average(&stats);
-        self.print_progress(&stats, &filter_by);
+        self.print_progress(&stats, &filter);
     }
 
     fn print_header(&self) {

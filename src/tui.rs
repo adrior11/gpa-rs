@@ -1,3 +1,4 @@
+// TODO: add precise validation
 use anyhow::Result;
 use cliclack::{Confirm, Input, MultiSelect, Select};
 use colored::Colorize;
@@ -137,7 +138,7 @@ fn edit(gpa: &mut GPA) -> Result<()> {
                 }
             })
             .interact()
-            .unwrap_or_else(|_| lec.title.clone());
+            .unwrap_or(lec.title.clone());
         lec.title = title.trim().to_string();
     }
     if fields.contains(&"credits") {
@@ -153,15 +154,13 @@ fn edit(gpa: &mut GPA) -> Result<()> {
             .unwrap_or(lec.semester);
     }
     if fields.contains(&"grade") {
-        let g: String = Input::new(format!("New grade: {}", "(leave blank to clear)".dimmed()))
-            .required(false)
-            .interact()
-            .unwrap();
-        lec.grade = if g.trim().is_empty() {
-            None
-        } else {
-            Some(g.parse::<f32>().unwrap())
-        };
+        let g: Option<f32> =
+            Input::new(format!("New grade: {}", "(leave blank to clear)".dimmed()))
+                .required(false)
+                .interact::<String>()?
+                .parse()
+                .ok();
+        lec.grade = g;
     }
     if fields.contains(&"completed") {
         lec.completed = Confirm::new("Completed?")
@@ -170,7 +169,10 @@ fn edit(gpa: &mut GPA) -> Result<()> {
             .unwrap_or(lec.completed);
     }
 
-    gpa.save()?;
+    if let Err(e) = gpa.save() {
+        cliclack::outro_cancel("Could not save changes.")?;
+        return Err(e);
+    }
     let _ = cliclack::outro("Changes saved.");
     Ok(())
 }
@@ -275,7 +277,10 @@ fn config(gpa: &mut GPA) -> Result<()> {
             .interact()?;
     }
 
-    gpa.save()?;
+    if let Err(e) = gpa.save() {
+        cliclack::outro_cancel("Could not save configuration.")?;
+        return Err(e);
+    }
     let _ = cliclack::outro("Configuration saved.");
     Ok(())
 }
