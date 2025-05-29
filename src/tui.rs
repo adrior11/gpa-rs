@@ -107,11 +107,23 @@ fn edit(gpa: &mut GPA) -> Result<()> {
         "Select the fields you want to change: {}",
         "(space to toggle)".dimmed()
     ))
-    .item("title", "Title", "")
-    .item("credits", "Credits", "")
-    .item("semester", "Semester", "")
-    .item("grade", "Grade", "")
-    .item("completed", "Completed", "")
+    .item("title", "Title", format!("current {}", lec.title))
+    .item("credits", "Credits", format!("current {}", lec.credits))
+    .item("semester", "Semester", format!("current {}", lec.semester))
+    .item(
+        "grade",
+        "Grade",
+        format!(
+            "current {}",
+            lec.grade
+                .map_or("not graded".to_string(), |g| g.to_string())
+        ),
+    )
+    .item(
+        "completed",
+        "Completed",
+        format!("current {}", if lec.completed { "yes" } else { "no" }),
+    )
     .interact()?;
 
     if fields.contains(&"title") {
