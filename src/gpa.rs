@@ -249,18 +249,19 @@ impl FilterBy {
                 return false;
             }
         }
-        if let Some(s) = self.semester {
-            if lec.semester != s {
+        if let Some(ref s) = self.semester {
+            if !s.matches(&lec.semester) {
                 return false;
             }
         }
-        if let Some(g) = self.grade {
-            if lec.grade != Some(g) {
-                return false;
+        if let Some(ref g) = self.grade {
+            match lec.grade {
+                Some(val) if g.matches(&val) => {}
+                _ => return false,
             }
         }
-        if let Some(c) = self.credits {
-            if lec.credits != c {
+        if let Some(ref c) = self.credits {
+            if !c.matches(&lec.credits) {
                 return false;
             }
         }
