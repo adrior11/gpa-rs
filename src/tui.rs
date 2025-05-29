@@ -89,7 +89,6 @@ impl Tui {
                 (
                     i.to_string(),
                     l.title.clone(),
-                    // TODO: display additional metadata
                     format!("S{} - {} Credits", l.semester, l.credits),
                 )
             })

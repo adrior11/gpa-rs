@@ -122,16 +122,19 @@ impl GPA {
             }
             println!();
         }
-        self.print_footer(
-            &filter_by,
-            stats,
-            if short { None } else { Some(rows.len()) },
-        );
+
+        self.print_average(&stats);
+        self.print_progress(&stats, &filter_by);
+
+        if filter_by.is_some() && !short {
+            let rows_str = format!("({} course rows shown)", rows.len()).dimmed();
+            println!("{rows_str}");
+        }
     }
 
     fn print_header(&self) {
         let header_line = format!(
-            "{:<40} {:>7} {:>4} {:>6} {:>3}",
+            " {:<40} {:>7} {:>4} {:>6} {:>3}",
             "Title", "Credits", "Sem", "Grade", "✓"
         )
         .bold();
@@ -141,21 +144,24 @@ impl GPA {
 
     fn print_row(&self, lec: &Lecture) {
         let grade = match lec.grade {
-            // Some(g) if !self.grading_system.is_pass(g) => format!("{g:.1}").red().bold(),
+            Some(g) if !self.grading_system.is_pass(g) && self.grading_system.ignore_failed => {
+                format!("{g:.1}").red().bold()
+            }
             Some(g) if self.grading_system.better(g, self.target_average) => {
                 format!("{g:.1}").green()
             }
             Some(g) => format!("{g:.1}").red(),
             None => "-".dimmed(),
         };
-        let flag = if lec.completed { "✓" } else { "✗" };
+
+        let flag = if lec.completed { "✓" } else { "" }.dimmed();
         println!(
-            "{:<40} {:>7} {:>4} {:>6} {:>3}",
+            " {:<40} {:>7} {:>4} {:>6} {:>3}",
             lec.title, lec.credits, lec.semester, grade, flag
         );
     }
 
-    fn print_footer(&self, filter: &Option<FilterBy>, stats: Stats, shown_rows: Option<usize>) {
+    fn print_average(&self, stats: &Stats) {
         let avg = stats.avg();
         let avg_str = if avg <= 0.0 {
             "".into()
@@ -164,42 +170,23 @@ impl GPA {
         } else {
             format!("{:.2}", avg).red()
         };
-
-        let (scope, max) = if filter.is_some() {
-            ("Credits in selection", stats.all)
-        } else {
-            ("Total achieved credits", self.grading_system.credit_goal)
-        };
-
         if avg > 0.0 {
-            println!(
-                "Average over {} graded credits: {}\n",
-                stats.graded, avg_str
-            );
-        }
-        println!("⇢ {scope}: {}/{}", stats.total(), max);
-        println!("  {}", self.progress_bar(stats.total(), max, 30));
-
-        // TODO: add warning line if there are more points added, then needed
-
-        if stats.points_only > 0 {
-            println!(
-                "{}",
-                format!(
-                    "  (graded {} + points-only {})",
-                    stats.graded, stats.points_only
-                )
-                .dimmed()
-            );
-        }
-        if let Some(len) = shown_rows {
-            println!("  {}", format!("({len} course rows shown)").dimmed());
+            println!("Average over {} graded credits: {}", stats.graded, avg_str);
         }
     }
 
-    fn sort_default(&mut self) {
-        self.lectures
-            .sort_by(|a, b| a.semester.cmp(&b.semester).then(a.title.cmp(&b.title)));
+    fn print_progress(&self, stats: &Stats, filter: &Option<FilterBy>) {
+        let max = if filter.is_some() {
+            stats.all
+        } else {
+            self.grading_system.credit_goal
+        };
+        let credits_str = format!("({}/{})", stats.total(), max,).dimmed();
+        println!(
+            "Progress {} {}",
+            self.progress_bar(stats.total(), max, 45),
+            credits_str
+        );
     }
 
     fn progress_bar(&self, current: u16, total: u16, width: usize) -> String {
@@ -208,6 +195,11 @@ impl GPA {
         let done = "█".repeat(filled).cyan();
         let rest = "░".repeat(width - filled).dimmed();
         format!("[{}{}]", done, rest)
+    }
+
+    fn sort_default(&mut self) {
+        self.lectures
+            .sort_by(|a, b| a.semester.cmp(&b.semester).then(a.title.cmp(&b.title)));
     }
 }
 
