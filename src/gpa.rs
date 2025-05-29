@@ -1,7 +1,8 @@
+use std::{cmp::Ordering, fs};
+
+use anyhow::{anyhow, Result};
 use colored::Colorize;
 use serde::{Deserialize, Serialize};
-use std::cmp::Ordering;
-use std::fs;
 
 use crate::{
     cli::{FilterBy, SortBy},
@@ -9,7 +10,7 @@ use crate::{
 };
 
 #[allow(clippy::upper_case_acronyms)]
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct GPA {
     pub target_credits: u8,
     pub target_grade: f32,
@@ -92,18 +93,20 @@ impl GPA {
     }
 
     fn print_header() {
-        println!(
+        let header_line = format!(
             "{:<40} {:>7} {:>4} {:>6} {:>3}",
             "Title", "Credits", "Sem", "Grade", "✓"
-        );
-        println!("{}", "-".repeat(66));
+        )
+        .bold();
+        println!("{header_line}");
+        println!("{}", "─".repeat(66).dimmed());
     }
 
     fn print_row(lec: &Lecture, target: f32) {
         let grade = match lec.grade {
             Some(g) if g <= target => format!("{g:.1}").green(),
             Some(g) => format!("{g:.1}").red(),
-            None => "-".normal(),
+            None => "-".dimmed(),
         };
         let flag = if lec.completed { "✓" } else { "✗" };
         println!(
@@ -141,6 +144,9 @@ impl GPA {
             );
         }
         println!("⇢ {scope}: {}/{}", stats.total(), max);
+        println!("  {}", Self::progress_bar(stats.total(), max, 30));
+
+        // TODO: add warning line if there are more points added, then needed
 
         if stats.points_only > 0 {
             println!(
@@ -157,10 +163,47 @@ impl GPA {
         }
     }
 
-    pub fn _save(&self) -> Result<(), Box<dyn std::error::Error>> {
+    pub fn save(&self) -> Result<()> {
         let json = serde_json::to_string_pretty(self)?;
         fs::write(file_util::get_config_path(), json)?;
         Ok(())
+    }
+
+    pub fn add_lecture(&mut self, lec: Lecture) -> Result<()> {
+        self.lectures.push(lec);
+        self.sort_default();
+        self.save()
+    }
+
+    pub fn update_lecture(&mut self, idx: usize, mut f: impl FnMut(&mut Lecture)) -> Result<()> {
+        let lec = self
+            .lectures
+            .get_mut(idx)
+            .ok_or_else(|| anyhow!("No lecture at index {idx}"))?;
+        f(lec);
+        self.save()
+    }
+
+    pub fn delete_lecture(&mut self, idx: usize) -> Result<()> {
+        if idx < self.lectures.len() {
+            self.lectures.remove(idx);
+            self.save()
+        } else {
+            Err(anyhow!("No lecture at index {idx}"))
+        }
+    }
+
+    fn sort_default(&mut self) {
+        self.lectures
+            .sort_by(|a, b| a.semester.cmp(&b.semester).then(a.title.cmp(&b.title)));
+    }
+
+    fn progress_bar(current: u8, total: u8, width: usize) -> String {
+        let total = total.max(1); // avoid div-by-zero
+        let filled = ((current as f32 / total as f32) * width as f32).round() as usize;
+        let done = "█".repeat(filled).cyan();
+        let rest = "░".repeat(width - filled).dimmed();
+        format!("[{}{}]", done, rest)
     }
 }
 

@@ -13,7 +13,7 @@ pub enum Pattern {
     File,
 
     #[command(
-        alias = "o",
+        alias = "o", // TODO: omit
         subcommand_negates_reqs = true,
         args_conflicts_with_subcommands = true,
         group(
@@ -35,6 +35,9 @@ pub enum Pattern {
         #[arg(short = 'S', long = "short")]
         short: bool,
     },
+
+    #[command(alias = "t")]
+    Tui,
 }
 
 #[derive(Clone, Debug, Args)]

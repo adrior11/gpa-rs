@@ -1,7 +1,8 @@
-use crate::gpa::GPA;
+use std::{fs, path::PathBuf};
+
 use dirs::config_dir;
-use std::fs;
-use std::path::PathBuf;
+
+use crate::gpa::GPA;
 
 const APP_NAME: &str = "gpa-calc";
 const CONFIG_FILE: &str = "gpa.json";
