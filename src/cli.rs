@@ -3,7 +3,7 @@ use std::{fmt::Display, ops::RangeInclusive, str::FromStr};
 use clap::{ArgAction, Args, Parser, Subcommand, ValueEnum};
 
 /// GPA-RS – personal GPA tracker
-#[derive(Parser)]
+#[derive(Parser, Debug, PartialEq)]
 #[command(author, version, about, long_about = None)]
 pub struct Cli {
     #[command(subcommand)]
@@ -25,13 +25,13 @@ pub struct Cli {
     pub short: bool,
 }
 
-#[derive(Subcommand)]
+#[derive(Subcommand, Debug, PartialEq)]
 pub enum Command {
     /// Interactive text-user-interface
     Tui,
 }
 
-#[derive(Clone, Debug, Args)]
+#[derive(Args, Clone, Debug, Default, PartialEq)]
 #[group(
     id = "filter_by",
     multiple = true,
@@ -59,7 +59,7 @@ pub struct FilterBy {
     pub completed: Option<bool>,
 }
 
-#[derive(Clone, ValueEnum)]
+#[derive(ValueEnum, Clone, Debug, PartialEq)]
 pub enum OrderBy {
     Title,
     Credits,
@@ -68,7 +68,7 @@ pub enum OrderBy {
     Completed,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum NumRange<T> {
     Single(T),
     Range(RangeInclusive<T>),
@@ -100,5 +100,85 @@ where
         Ok(NumRange::Single(
             s.trim().parse().map_err(|e| format!("{e}"))?,
         ))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parse_single_u16() {
+        let r = parse_range::<u16>("8").unwrap();
+        assert!(matches!(r, NumRange::Single(8)));
+        assert!(r.matches(&8));
+        assert!(!r.matches(&7));
+    }
+
+    #[test]
+    fn parse_single_16_with_spaces() {
+        let r = parse_range::<u16>("   42   ").unwrap();
+        assert_eq!(r, NumRange::Single(42));
+        assert!(r.matches(&42));
+    }
+
+    #[test]
+    fn parse_u16_range() {
+        let r = parse_range::<u16>("2..5").unwrap();
+        assert!(matches!(r, NumRange::Range(_)));
+        assert!(r.matches(&2) && r.matches(&4) && r.matches(&5));
+        assert!(!r.matches(&6));
+    }
+
+    #[test]
+    fn parse_u16_hyphen_range() {
+        let r = parse_range::<u16>("10-12").unwrap();
+        assert!(r.matches(&10) && r.matches(&11) && r.matches(&12));
+    }
+
+    #[test]
+    fn parse_single_float() {
+        let r = parse_range::<f32>("1.14").unwrap();
+        assert!(matches!(r, NumRange::Single(1.14)));
+        assert!(r.matches(&1.14));
+        assert!(!r.matches(&3.0));
+    }
+
+    #[test]
+    fn parse_float_range() {
+        let r = parse_range::<f32>("1.0..=2.5").unwrap();
+        assert!(r.matches(&1.7));
+        assert!(!r.matches(&0.9));
+    }
+
+    #[test]
+    fn parse_float_hyphen_range() {
+        let r = parse_range::<f32>("1.0-2.5").unwrap();
+        assert!(r.matches(&1.7));
+        assert!(!r.matches(&0.9));
+    }
+
+    #[test]
+    fn parse_u16_range_rejects_non_number() {
+        let err = parse_range::<u16>("abc").unwrap_err();
+        assert!(err.contains("invalid digit"));
+    }
+
+    #[test]
+    fn parse_float_range_reject_non_number() {
+        let err = parse_range::<f32>("abc").unwrap_err();
+        assert!(err.contains("invalid float literal"));
+    }
+
+    #[test]
+    fn parse_range_rejects_reverse_order() {
+        let err = parse_range::<f32>("10.0..5.0").unwrap_err();
+        assert_eq!(err, "range must be low..high");
+    }
+
+    #[test]
+    fn parse_range_rejects_reverse_hyphen() {
+        let err = parse_range::<f32>("12.0-3.0").unwrap_err();
+        assert_eq!(err, "range must be low..high");
     }
 }

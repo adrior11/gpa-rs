@@ -27,7 +27,13 @@ fn run() -> Result<()> {
             }?
         }
         None => {
-            gpa.overview(args.filter, args.order_by, args.reverse, args.short);
+            gpa.overview(
+                &mut std::io::stdout(),
+                args.filter,
+                args.order_by,
+                args.reverse,
+                args.short,
+            )?;
         }
     }
 
@@ -38,5 +44,22 @@ fn main() {
     if let Err(e) = run() {
         eprintln!("Error: {:#}", e);
         std::process::exit(1);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_was_interrupted() {
+        let err = std::io::Error::new(std::io::ErrorKind::Interrupted, "Test error");
+        assert!(was_interrupted(&err));
+
+        let err = std::io::Error::new(std::io::ErrorKind::Other, "Another error");
+        assert!(!was_interrupted(&err));
+
+        let err = std::fmt::Error;
+        assert!(!was_interrupted(&err));
     }
 }

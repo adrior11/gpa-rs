@@ -2,12 +2,15 @@ use anyhow::Result;
 use cliclack::{Confirm, Input, MultiSelect, Select};
 use colored::Colorize;
 
-use crate::gpa::{Lecture, GPA};
+use crate::{
+    file_util,
+    gpa::{Lecture, GPA},
+};
 
 pub fn start(gpa: &mut GPA) -> Result<()> {
     ctrlc::set_handler(move || {}).expect("setting Ctrl-C handler");
 
-    let _ = cliclack::intro("GPA-RS – personal GPA tracker");
+    cliclack::intro("GPA-RS – personal GPA tracker")?;
 
     let selected_mode = Select::new(format!(
         "Choose an action: {}",
@@ -78,14 +81,17 @@ fn add(gpa: &mut GPA) -> Result<()> {
         grade,
         completed,
     })?;
-
-    let _ = cliclack::outro("Course added.");
+    if let Err(e) = gpa.save(file_util::get_config_path()) {
+        cliclack::outro_cancel("Could not save course.")?;
+        return Err(e);
+    }
+    cliclack::outro("Course added.")?;
     Ok(())
 }
 
 fn edit(gpa: &mut GPA) -> Result<()> {
     if gpa.lectures.is_empty() {
-        let _ = cliclack::outro_cancel("No courses yet.");
+        cliclack::outro_cancel("No courses yet.")?;
         return Ok(());
     }
 
@@ -194,17 +200,17 @@ fn edit(gpa: &mut GPA) -> Result<()> {
             .unwrap_or(lec.completed);
     }
 
-    if let Err(e) = gpa.save() {
+    if let Err(e) = gpa.save(file_util::get_config_path()) {
         cliclack::outro_cancel("Could not save changes.")?;
         return Err(e);
     }
-    let _ = cliclack::outro("Changes saved.");
+    cliclack::outro("Changes saved.")?;
     Ok(())
 }
 
 fn delete(gpa: &mut GPA) -> Result<()> {
     if gpa.lectures.is_empty() {
-        let _ = cliclack::outro_cancel("Nothing to delete.");
+        cliclack::outro_cancel("Nothing to delete.")?;
         return Ok(());
     }
 
@@ -229,7 +235,11 @@ fn delete(gpa: &mut GPA) -> Result<()> {
 
     if Confirm::new(format!("Delete \"{}\"?  This cannot be undone.", lec.title)).interact()? {
         gpa.delete_lecture(idx)?;
-        let _ = cliclack::outro("Course deleted.");
+        if let Err(e) = gpa.save(file_util::get_config_path()) {
+            cliclack::outro_cancel("Could not delete course.")?;
+            return Err(e);
+        }
+        cliclack::outro("Course deleted.")?;
     }
 
     Ok(())
@@ -318,11 +328,11 @@ fn config(gpa: &mut GPA) -> Result<()> {
             .interact()?;
     }
 
-    if let Err(e) = gpa.save() {
+    if let Err(e) = gpa.save(file_util::get_config_path()) {
         cliclack::outro_cancel("Could not save configuration.")?;
         return Err(e);
     }
-    let _ = cliclack::outro("Configuration saved.");
+    cliclack::outro("Configuration saved.")?;
     Ok(())
 }
 
