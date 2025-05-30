@@ -98,15 +98,12 @@ mod tests {
         let cfg = get_config_path();
         let dir = cfg.parent().unwrap();
         fs::create_dir_all(dir).unwrap();
+        assert!(!cfg.exists());
 
         // remove write bits (r-xr-xr-x)
         let mut p = fs::metadata(dir).unwrap().permissions();
         p.set_mode(0o555);
         fs::set_permissions(dir, p).unwrap();
-
-        if cfg.exists() {
-            fs::remove_file(&cfg).unwrap();
-        }
 
         let err = load_or_create_config().unwrap_err();
         assert!(format!("{:#}", err).contains("writing"));
