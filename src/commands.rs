@@ -2,7 +2,7 @@ use std::{fmt::Display, ops::RangeInclusive, str::FromStr};
 
 use clap::{ArgAction, Args, Parser, Subcommand, ValueEnum};
 
-/// GPA-RS – personal GPA tracker
+/// Rust-powered personal command-line GPA tracker
 #[derive(Parser, Debug, PartialEq)]
 #[command(author, version, about, long_about = None)]
 pub struct Cli {
@@ -13,7 +13,7 @@ pub struct Cli {
     pub filter: Option<FilterBy>,
 
     /// Order by column (repeatable)
-    #[arg(short, long, value_enum, action = ArgAction::Append)]
+    #[arg(short, long, value_enum, num_args = 1.., action = ArgAction::Append)]
     pub order_by: Vec<OrderBy>,
 
     /// Reverse the final order
@@ -25,10 +25,14 @@ pub struct Cli {
     pub short: bool,
 }
 
-#[derive(Subcommand, Debug, PartialEq)]
+#[derive(Subcommand, Debug, PartialEq, Eq)]
+#[clap(args_conflicts_with_subcommands = true)]
 pub enum Command {
-    /// Interactive text-user-interface
-    Tui,
+    /// Launch interactive TUI for managing courses and GPA configuration
+    ///
+    /// Aliases: [cfg, config, set]
+    #[command(alias = "cfg", alias = "config", alias = "set")]
+    Settings,
 }
 
 #[derive(Args, Clone, Debug, Default, PartialEq)]
@@ -55,11 +59,11 @@ pub struct FilterBy {
     pub credits: Option<NumRange<u16>>,
 
     /// Filter: completed state
-    #[arg(short = 'd', long, group = "filter_by")]
+    #[arg(short = 'd', long, group = "filter_by", alias = "done")]
     pub completed: Option<bool>,
 }
 
-#[derive(ValueEnum, Clone, Debug, PartialEq)]
+#[derive(ValueEnum, Clone, Debug, PartialEq, Eq)]
 pub enum OrderBy {
     Title,
     Credits,
@@ -68,7 +72,7 @@ pub enum OrderBy {
     Completed,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum NumRange<T> {
     Single(T),
     Range(RangeInclusive<T>),

@@ -28,7 +28,7 @@ jobs:
         uses: dtolnay/rust-toolchain@master
         with:
           toolchain: ${{ matrix.rust }}
-          components: clippy, rustfmt
+          components: clippy, rustfmt, llvm-tools-preview
 
       - name: Install cargo-llvm-cov
         uses: taiki-e/install-action@v2
@@ -42,20 +42,20 @@ jobs:
           key: ${{ matrix.rust }}
           save-if: ${{ github.event_name != 'pull_request' }}
 
-      - name: Cargo build
-        run: cargo build --verbose
-
       - name: Cargo clippy
         run: cargo clippy -- -D warnings
 
       - name: Cargo fmt
         run: cargo fmt --all --check
 
-      - name: Cargo test
-        run: cargo test --verbose
-
-      - name: Generate coverage report
-        run: cargo llvm-cov --all-features --workspace --lcov --output-path lcov.info
+      - name: Cargo llvm-cov (test & report)
+        run: |
+          cargo llvm-cov \
+          --all-features \
+          --workspace \
+          --all-targets \
+          --lcov \
+          --output-path lcov.info
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v5

@@ -1,6 +1,6 @@
 use std::{fs, path::PathBuf};
 
-use anyhow::{Context, Result};
+use anyhow::Context;
 
 use crate::gpa::GPA;
 
@@ -14,7 +14,7 @@ pub fn get_config_path() -> PathBuf {
     path
 }
 
-pub fn load_or_create_config() -> Result<GPA> {
+pub fn load_or_create_config() -> anyhow::Result<GPA> {
     let config_path = get_config_path();
 
     if !config_path.exists() {
@@ -22,17 +22,17 @@ pub fn load_or_create_config() -> Result<GPA> {
             .with_context(|| format!("creating {:?}", config_path.parent().unwrap()))?;
         let default_gpa = GPA::default();
         let json = serde_json::to_string_pretty(&default_gpa)?;
-        fs::write(&config_path, json).with_context(|| format!("writing {:?}", config_path))?;
+        fs::write(&config_path, json).with_context(|| format!("writing {config_path:?}"))?;
     }
 
     let json: String =
-        fs::read_to_string(&config_path).with_context(|| format!("reading {:?}", config_path))?;
+        fs::read_to_string(&config_path).with_context(|| format!("reading {config_path:?}"))?;
     let gpa: GPA =
-        serde_json::from_str(&json).with_context(|| format!("parsing {:?}", config_path))?;
+        serde_json::from_str(&json).with_context(|| format!("parsing {config_path:?}"))?;
     Ok(gpa)
 }
 
-fn ensure_config_dir() -> Result<()> {
+fn ensure_config_dir() -> anyhow::Result<()> {
     let mut path = dirs::config_dir().expect("Could not find XDG config dir");
     path.push(APP_NAME);
     fs::create_dir_all(&path).context("creating config directory")?;
@@ -43,7 +43,6 @@ fn ensure_config_dir() -> Result<()> {
 mod tests {
     use std::{env, os::unix::fs::PermissionsExt, path::Path};
 
-    use serial_test::serial;
     use tempfile::TempDir;
 
     use crate::gpa::Lecture;
@@ -57,7 +56,7 @@ mod tests {
     }
 
     #[test]
-    #[serial]
+    #[serial_test::serial]
     fn creates_default_when_missing() {
         let tmp = TempDir::new().unwrap();
         redirect_config_home(tmp.path());
@@ -72,7 +71,7 @@ mod tests {
     }
 
     #[test]
-    #[serial]
+    #[serial_test::serial]
     fn loads_existing_config() {
         let tmp = TempDir::new().unwrap();
         redirect_config_home(tmp.path());
@@ -90,7 +89,7 @@ mod tests {
     }
 
     #[test]
-    #[serial]
+    #[serial_test::serial]
     fn load_config_fails_on_write_error() {
         let tmp = tempfile::TempDir::new().unwrap();
         redirect_config_home(tmp.path());
@@ -106,11 +105,11 @@ mod tests {
         fs::set_permissions(dir, p).unwrap();
 
         let err = load_or_create_config().unwrap_err();
-        assert!(format!("{:#}", err).contains("writing"));
+        assert!(format!("{err:#}").contains("writing"));
     }
 
     #[test]
-    #[serial]
+    #[serial_test::serial]
     fn load_config_fails_on_unreadable_file() {
         let tmp = TempDir::new().unwrap();
         redirect_config_home(tmp.path());
@@ -120,11 +119,11 @@ mod tests {
         fs::create_dir(&cfg).unwrap();
 
         let err = load_or_create_config().unwrap_err();
-        assert!(format!("{:#}", err).contains("reading"));
+        assert!(format!("{err:#}").contains("reading"));
     }
 
     #[test]
-    #[serial]
+    #[serial_test::serial]
     fn load_config_fails_on_malformed_json() {
         let tmp = TempDir::new().unwrap();
         redirect_config_home(tmp.path());
@@ -134,11 +133,11 @@ mod tests {
         fs::write(&cfg, "not valid json").unwrap();
 
         let err = load_or_create_config().unwrap_err();
-        assert!(format!("{:#}", err).contains("parsing"));
+        assert!(format!("{err:#}").contains("parsing"));
     }
 
     #[test]
-    #[serial]
+    #[serial_test::serial]
     fn save_config_updates_existing_file() {
         let tmp = TempDir::new().unwrap();
         redirect_config_home(tmp.path());
@@ -166,22 +165,22 @@ mod tests {
             completed: false,
         });
 
-        g.save(cfg.clone()).unwrap();
+        g.save(&cfg).unwrap();
         assert!(cfg.exists());
         assert_ne!(g, loaded);
     }
 
     #[test]
-    #[serial]
+    #[serial_test::serial]
     fn save_fails_when_path_is_directory() {
         let tmp = TempDir::new().unwrap();
         let dir_as_file: PathBuf = tmp.path().join("should_be_file");
         fs::create_dir_all(&dir_as_file).unwrap();
 
         let gpa = GPA::default();
-        let err = gpa.save(dir_as_file.clone()).unwrap_err();
+        let err = gpa.save(&dir_as_file).unwrap_err();
 
-        let msg = format!("{:#}", err);
-        assert!(msg.contains(&format!("writing GPA to {:?}", dir_as_file)));
+        let msg = format!("{err:#}");
+        assert!(msg.contains(&format!("writing GPA to {dir_as_file:?}")));
     }
 }

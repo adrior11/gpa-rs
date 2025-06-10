@@ -1,10 +1,10 @@
 use std::{cmp::Ordering, fs, io::Write, path::PathBuf};
 
-use anyhow::{Context, Result};
+use anyhow::Context;
 use colored::Colorize;
 use serde::{Deserialize, Serialize};
 
-use crate::cli::{FilterBy, OrderBy};
+use crate::commands::{FilterBy, OrderBy};
 
 #[allow(clippy::upper_case_acronyms)]
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq)]
@@ -61,25 +61,24 @@ impl Default for GradingSystem {
 }
 
 impl GPA {
-    pub fn save(&self, path: PathBuf) -> Result<()> {
+    pub fn save(&self, path: &PathBuf) -> anyhow::Result<()> {
         let json = serde_json::to_string_pretty(self)?;
-        fs::write(&path, json).with_context(|| format!("writing GPA to {:?}", path))?;
+        fs::write(path, json).with_context(|| format!("writing GPA to {path:?}"))?;
         Ok(())
     }
 
-    pub fn get_lecture_mut(&mut self, idx: usize) -> Result<&mut Lecture> {
+    pub fn get_lecture_mut(&mut self, idx: usize) -> anyhow::Result<&mut Lecture> {
         self.lectures
             .get_mut(idx)
             .ok_or_else(|| anyhow::anyhow!("No lecture at index {idx}"))
     }
 
-    pub fn add_lecture(&mut self, lec: Lecture) -> Result<()> {
+    pub fn add_lecture(&mut self, lec: Lecture) {
         self.lectures.push(lec);
         self.sort_default();
-        Ok(())
     }
 
-    pub fn delete_lecture(&mut self, idx: usize) -> Result<()> {
+    pub fn delete_lecture(&mut self, idx: usize) -> anyhow::Result<()> {
         if idx < self.lectures.len() {
             self.lectures.remove(idx);
             Ok(())
@@ -91,11 +90,11 @@ impl GPA {
     pub fn overview<W: Write>(
         &self,
         out: &mut W,
-        filter: Option<FilterBy>,
-        order_by: Vec<OrderBy>,
+        filter: Option<&FilterBy>,
+        order_by: &[OrderBy],
         reverse: bool,
         short: bool,
-    ) -> Result<()> {
+    ) -> anyhow::Result<()> {
         let mut rows: Vec<&Lecture> = self
             .lectures
             .iter()
@@ -114,7 +113,7 @@ impl GPA {
             .for_each(|lec| stats.add(lec, &self.grading_system));
 
         if !short {
-            self.write_header(out)?;
+            write_header(out)?;
             for lec in &rows {
                 self.write_row(out, lec)?;
             }
@@ -122,23 +121,12 @@ impl GPA {
         }
 
         self.write_average(out, &stats)?;
-        self.write_progress(out, &stats, &filter)?;
+        self.write_progress(out, &stats, filter)?;
 
         Ok(())
     }
 
-    fn write_header<W: Write>(&self, w: &mut W) -> Result<()> {
-        let header_line = format!(
-            " {:<40} {:>7} {:>4} {:>6} {:>3}",
-            "Title", "Credits", "Sem", "Grade", "✓"
-        )
-        .bold();
-        writeln!(w, "{header_line}")?;
-        writeln!(w, "{}", "─".repeat(66).dimmed())?;
-        Ok(())
-    }
-
-    fn write_row<W: Write>(&self, w: &mut W, lec: &Lecture) -> Result<()> {
+    fn write_row<W: Write>(&self, w: &mut W, lec: &Lecture) -> anyhow::Result<()> {
         let grade = match lec.grade {
             Some(g) if !self.grading_system.is_pass(g) && self.grading_system.ignore_failed => {
                 format!("{g:.1}").red().bold()
@@ -160,13 +148,13 @@ impl GPA {
         Ok(())
     }
 
-    fn write_average<W: Write>(&self, w: &mut W, stats: &Stats) -> Result<()> {
+    fn write_average<W: Write>(&self, w: &mut W, stats: &Stats) -> anyhow::Result<()> {
         let avg = stats.avg();
         if avg > 0.0 {
             let avg_str = if self.grading_system.better(avg, self.target_average) {
-                format!("{:.2}", avg).green()
+                format!("{avg:.2}").green()
             } else {
-                format!("{:.2}", avg).red()
+                format!("{avg:.2}").red()
             };
 
             writeln!(
@@ -174,7 +162,7 @@ impl GPA {
                 "Average over {} graded credits: {}",
                 stats.graded, avg_str
             )?;
-        };
+        }
         Ok(())
     }
 
@@ -182,8 +170,8 @@ impl GPA {
         &self,
         w: &mut W,
         stats: &Stats,
-        filter: &Option<FilterBy>,
-    ) -> Result<()> {
+        filter: Option<&FilterBy>,
+    ) -> anyhow::Result<()> {
         let max = if filter.is_some() {
             stats.all
         } else {
@@ -193,19 +181,10 @@ impl GPA {
         writeln!(
             w,
             "Progress {} {}",
-            self.progress_bar(stats.total(), max, 45),
+            progress_bar(stats.total(), max, 45),
             credits_str
         )?;
         Ok(())
-    }
-
-    fn progress_bar(&self, current: u16, total: u16, width: usize) -> String {
-        // avoid div-by-zero and clamp ratio to [0, 1]
-        let ratio = (current as f32 / total.max(1) as f32).min(1.0);
-        let filled = (ratio * width as f32).round() as usize;
-        let done = "█".repeat(filled).cyan();
-        let rest = "░".repeat(width - filled).dimmed();
-        format!("[{}{}]", done, rest)
     }
 
     fn sort_default(&mut self) {
@@ -239,7 +218,7 @@ impl Stats {
         match (lec.grade, lec.completed) {
             (Some(g), _) if sys.ignore_failed && !sys.is_pass(g) => { /* ignore */ }
             (Some(g), _) => {
-                self.weighted += g * lec.credits as f32;
+                self.weighted += g * f32::from(lec.credits);
                 self.graded += lec.credits;
             }
             (None, true) => self.points_only += lec.credits,
@@ -248,12 +227,12 @@ impl Stats {
     }
     fn avg(&self) -> f32 {
         if self.graded > 0 {
-            self.weighted / self.graded as f32
+            self.weighted / f32::from(self.graded)
         } else {
             0.0
         }
     }
-    fn total(&self) -> u16 {
+    const fn total(&self) -> u16 {
         self.graded + self.points_only
     }
 }
@@ -293,25 +272,45 @@ impl FilterBy {
 impl OrderBy {
     pub fn compare(&self, a: &Lecture, b: &Lecture) -> Ordering {
         match self {
-            OrderBy::Title => a.title.cmp(&b.title),
-            OrderBy::Credits => a.credits.cmp(&b.credits),
-            OrderBy::Semester => a.semester.cmp(&b.semester),
-            OrderBy::Grade => match (a.grade, b.grade) {
+            Self::Title => a.title.cmp(&b.title),
+            Self::Credits => a.credits.cmp(&b.credits),
+            Self::Semester => a.semester.cmp(&b.semester),
+            Self::Grade => match (a.grade, b.grade) {
                 (Some(ga), Some(gb)) => ga.partial_cmp(&gb).unwrap_or(Ordering::Equal),
                 (Some(_), None) => Ordering::Less,
                 (None, Some(_)) => Ordering::Greater,
                 (None, None) => Ordering::Equal,
             },
-            OrderBy::Completed => a.completed.cmp(&b.completed),
+            Self::Completed => a.completed.cmp(&b.completed),
         }
     }
+}
+
+fn write_header<W: Write>(w: &mut W) -> anyhow::Result<()> {
+    let header_line = format!(
+        " {:<40} {:>7} {:>4} {:>6} {:>3}",
+        "Title", "Credits", "Sem", "Grade", "✓"
+    )
+    .bold();
+    writeln!(w, "{header_line}")?;
+    writeln!(w, "{}", "─".repeat(66).dimmed())?;
+    Ok(())
+}
+
+fn progress_bar(current: u16, total: u16, width: usize) -> String {
+    // avoid div-by-zero and clamp ratio to [0, 1]
+    let ratio = (f32::from(current) / f32::from(total.max(1))).min(1.0);
+    let filled = (ratio * width as f32).round() as usize;
+    let done = "█".repeat(filled).cyan();
+    let rest = "░".repeat(width - filled).dimmed();
+    format!("[{done}{rest}]")
 }
 
 #[cfg(test)]
 mod tests {
     use std::{cmp::Ordering, ops::RangeInclusive};
 
-    use crate::cli::NumRange;
+    use crate::commands::NumRange;
 
     use super::*;
 
@@ -367,8 +366,7 @@ mod tests {
 
     #[test]
     fn progress_bar_width_and_fill() {
-        let gpa = GPA::default();
-        let bar = gpa.progress_bar(30, 60, 20);
+        let bar = progress_bar(30, 60, 20);
         let filled = bar.chars().filter(|c| *c == '█').count();
         let empty = bar.chars().filter(|c| *c == '░').count();
         assert_eq!(filled, 10);
@@ -377,8 +375,7 @@ mod tests {
 
     #[test]
     fn progress_bar_clamps_overflow() {
-        let gpa = GPA::default();
-        let bar = gpa.progress_bar(120, 60, 10);
+        let bar = progress_bar(120, 60, 10);
         assert_eq!(bar.matches('█').count(), 10);
         assert_eq!(bar.matches('░').count(), 0);
     }
@@ -469,7 +466,7 @@ mod tests {
         assert_eq!(g.lectures.len(), 0);
 
         let lec = lec("Calculus", 6, 1, Some(2.3), true);
-        g.add_lecture(lec.clone()).unwrap();
+        g.add_lecture(lec.clone());
 
         assert_eq!(g.lectures.len(), 1);
         assert_eq!(g.lectures[0], lec);
@@ -492,7 +489,7 @@ mod tests {
         };
 
         let mut buf = Vec::<u8>::new();
-        gpa.overview(&mut buf, None, vec![OrderBy::Title], true, false)?;
+        gpa.overview(&mut buf, None, &[OrderBy::Title], true, false)?;
 
         let out = String::from_utf8(buf)?;
         assert!(out.contains("Algorithms"));
@@ -512,7 +509,7 @@ mod tests {
             title: Some("Math".into()),
             ..Default::default()
         });
-        gpa.overview(&mut buf, filter, vec![], false, true)?;
+        gpa.overview(&mut buf, filter.as_ref(), &[], false, true)?;
 
         let txt = String::from_utf8(buf)?;
         assert!(!txt.contains("Title"));
@@ -527,7 +524,7 @@ mod tests {
         gpa.lectures.push(lec("Project", 5, 1, None, false));
 
         let mut buf = Vec::<u8>::new();
-        gpa.overview(&mut buf, None, vec![], false, true)?;
+        gpa.overview(&mut buf, None, &[], false, true)?;
 
         let txt = String::from_utf8(buf)?;
         assert!(!txt.contains("Title"));

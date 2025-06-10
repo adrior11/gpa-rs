@@ -1,13 +1,13 @@
-use anyhow::Result;
 use cliclack::{Confirm, Input, MultiSelect, Select};
 use colored::Colorize;
 
 use crate::{
     file_util,
     gpa::{Lecture, GPA},
+    utils,
 };
 
-pub fn start(gpa: &mut GPA) -> Result<()> {
+pub fn start(gpa: &mut GPA) -> anyhow::Result<()> {
     ctrlc::set_handler(move || {}).expect("setting Ctrl-C handler");
 
     cliclack::intro("GPA-RS – personal GPA tracker")?;
@@ -28,19 +28,18 @@ pub fn start(gpa: &mut GPA) -> Result<()> {
         "edit" => edit(gpa)?,
         "delete" => delete(gpa)?,
         "config" => config(gpa)?,
-        "exit" => {}
-        _ => unreachable!(),
+        _ => {}
     }
 
     Ok(())
 }
 
-fn add(gpa: &mut GPA) -> Result<()> {
+fn add(gpa: &mut GPA) -> anyhow::Result<()> {
     let mut title: String = Input::new("Course Title:")
         .placeholder("Algorithms & Data Structures")
         .validate(|input: &String| {
             if input.trim().is_empty() {
-                Err("Title is required.")
+                Err("Title is required")
             } else {
                 Ok(())
             }
@@ -59,7 +58,7 @@ fn add(gpa: &mut GPA) -> Result<()> {
                 if s.trim().is_empty() {
                     return Ok(());
                 }
-                parse_non_negative_grade(s)
+                utils::parse_non_negative_grade(s)
                     .map(|_| ())
                     .map_err(|e| e.to_string())
             })
@@ -67,7 +66,7 @@ fn add(gpa: &mut GPA) -> Result<()> {
     let grade = if grade_str.trim().is_empty() {
         None
     } else {
-        Some(parse_non_negative_grade(&grade_str)?)
+        Some(utils::parse_non_negative_grade(&grade_str)?)
     };
 
     let completed: bool = Confirm::new("Mark course as completed?")
@@ -80,8 +79,8 @@ fn add(gpa: &mut GPA) -> Result<()> {
         semester,
         grade,
         completed,
-    })?;
-    if let Err(e) = gpa.save(file_util::get_config_path()) {
+    });
+    if let Err(e) = gpa.save(&file_util::get_config_path()) {
         cliclack::outro_cancel("Could not save course.")?;
         return Err(e);
     }
@@ -89,7 +88,7 @@ fn add(gpa: &mut GPA) -> Result<()> {
     Ok(())
 }
 
-fn edit(gpa: &mut GPA) -> Result<()> {
+fn edit(gpa: &mut GPA) -> anyhow::Result<()> {
     if gpa.lectures.is_empty() {
         cliclack::outro_cancel("No courses yet.")?;
         return Ok(());
@@ -148,13 +147,13 @@ fn edit(gpa: &mut GPA) -> Result<()> {
             .placeholder(&lec.title)
             .validate(|input: &String| {
                 if input.trim().is_empty() {
-                    Err("Title is required.")
+                    Err("Title is required")
                 } else {
                     Ok(())
                 }
             })
             .interact()
-            .unwrap_or(lec.title.clone());
+            .unwrap_or_else(|_| lec.title.clone());
         lec.title = title.trim().to_string();
     }
     if fields.contains(&"credits") {
@@ -173,16 +172,12 @@ fn edit(gpa: &mut GPA) -> Result<()> {
         let grade_str: String =
             Input::new(format!("New grade: {}", "(leave blank to clear)".dimmed()))
                 .required(false)
-                .placeholder(&if let Some(g) = lec.grade {
-                    format!("{:.2}", g)
-                } else {
-                    "".to_string()
-                })
+                .placeholder(&lec.grade.map_or_else(String::new, |g| format!("{g:.2}")))
                 .validate(|s: &String| {
                     if s.trim().is_empty() {
                         return Ok(());
                     }
-                    parse_non_negative_grade(s)
+                    utils::parse_non_negative_grade(s)
                         .map(|_| ())
                         .map_err(|e| e.to_string())
                 })
@@ -190,7 +185,7 @@ fn edit(gpa: &mut GPA) -> Result<()> {
         lec.grade = if grade_str.trim().is_empty() {
             None
         } else {
-            Some(parse_non_negative_grade(&grade_str)?)
+            Some(utils::parse_non_negative_grade(&grade_str)?)
         };
     }
     if fields.contains(&"completed") {
@@ -200,7 +195,7 @@ fn edit(gpa: &mut GPA) -> Result<()> {
             .unwrap_or(lec.completed);
     }
 
-    if let Err(e) = gpa.save(file_util::get_config_path()) {
+    if let Err(e) = gpa.save(&file_util::get_config_path()) {
         cliclack::outro_cancel("Could not save changes.")?;
         return Err(e);
     }
@@ -208,7 +203,7 @@ fn edit(gpa: &mut GPA) -> Result<()> {
     Ok(())
 }
 
-fn delete(gpa: &mut GPA) -> Result<()> {
+fn delete(gpa: &mut GPA) -> anyhow::Result<()> {
     if gpa.lectures.is_empty() {
         cliclack::outro_cancel("Nothing to delete.")?;
         return Ok(());
@@ -235,7 +230,7 @@ fn delete(gpa: &mut GPA) -> Result<()> {
 
     if Confirm::new(format!("Delete \"{}\"?  This cannot be undone.", lec.title)).interact()? {
         gpa.delete_lecture(idx)?;
-        if let Err(e) = gpa.save(file_util::get_config_path()) {
+        if let Err(e) = gpa.save(&file_util::get_config_path()) {
             cliclack::outro_cancel("Could not delete course.")?;
             return Err(e);
         }
@@ -245,7 +240,7 @@ fn delete(gpa: &mut GPA) -> Result<()> {
     Ok(())
 }
 
-fn config(gpa: &mut GPA) -> Result<()> {
+fn config(gpa: &mut GPA) -> anyhow::Result<()> {
     let fields = MultiSelect::new(format!(
         "Select the configurations you want to update: {}",
         "(space to toggle)".dimmed()
@@ -292,7 +287,7 @@ fn config(gpa: &mut GPA) -> Result<()> {
                 if s.trim().is_empty() {
                     return Ok(());
                 }
-                parse_non_negative_grade(s)
+                utils::parse_non_negative_grade(s)
                     .map(|_| ())
                     .map_err(|e| e.to_string())
             })
@@ -321,31 +316,17 @@ fn config(gpa: &mut GPA) -> Result<()> {
                 if s.trim().is_empty() {
                     return Ok(());
                 }
-                parse_non_negative_grade(s)
+                utils::parse_non_negative_grade(s)
                     .map(|_| ())
                     .map_err(|e| e.to_string())
             })
             .interact()?;
     }
 
-    if let Err(e) = gpa.save(file_util::get_config_path()) {
+    if let Err(e) = gpa.save(&file_util::get_config_path()) {
         cliclack::outro_cancel("Could not save configuration.")?;
         return Err(e);
     }
     cliclack::outro("Configuration saved.")?;
     Ok(())
-}
-
-fn parse_non_negative_grade(input: &str) -> Result<f32> {
-    let g: f32 = input
-        .trim()
-        .parse()
-        .map_err(|_| anyhow::anyhow!("Value must be a decimal number"))?;
-    if !g.is_finite() {
-        anyhow::bail!("Value can’t be infinite nor NaN");
-    } else if g.signum() == -1.0 {
-        anyhow::bail!("Value can’t be negative");
-    } else {
-        Ok(g)
-    }
 }
