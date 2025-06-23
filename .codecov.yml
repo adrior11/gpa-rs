@@ -4,3 +4,14 @@ ignore:
 
 codecov:
   require_ci_to_pass: yes
+
+coverage:
+  status:
+    patch:
+      default:
+        target: auto
+        threshold: 0.10%
+    project:
+      default:
+        target: auto
+        threshold: 0.10%
