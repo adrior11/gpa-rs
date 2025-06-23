@@ -281,7 +281,7 @@ impl OrderBy {
                 (None, Some(_)) => Ordering::Greater,
                 (None, None) => Ordering::Equal,
             },
-            Self::Completed => a.completed.cmp(&b.completed),
+            Self::Completed => b.completed.cmp(&a.completed), // completed lectures first
         }
     }
 }
@@ -314,13 +314,19 @@ mod tests {
 
     use super::*;
 
-    fn lec(title: &str, credits: u16, sem: u16, grade: Option<f32>, done: bool) -> Lecture {
+    fn lec(
+        title: &str,
+        credits: u16,
+        semester: u16,
+        grade: Option<f32>,
+        completed: bool,
+    ) -> Lecture {
         Lecture {
             title: title.into(),
             credits,
-            semester: sem,
+            semester,
             grade,
-            completed: done,
+            completed,
         }
     }
 
@@ -354,7 +360,7 @@ mod tests {
         assert_eq!(s.graded, 6);
         assert_eq!(s.points_only, 12);
         assert_eq!(s.all, 26);
-        assert!((s.avg() - 2.3).abs() < 1e-6);
+        assert_eq!(s.avg(), 2.3);
         assert_eq!(s.total(), 18);
     }
 
@@ -389,7 +395,7 @@ mod tests {
         assert_eq!(OrderBy::Title.compare(&a, &b), Ordering::Less);
         assert_eq!(OrderBy::Credits.compare(&a, &b), Ordering::Equal);
         assert_eq!(OrderBy::Semester.compare(&a, &b), Ordering::Less);
-        assert_eq!(OrderBy::Completed.compare(&a, &b), Ordering::Greater);
+        assert_eq!(OrderBy::Completed.compare(&a, &b), Ordering::Less);
 
         assert_eq!(OrderBy::Grade.compare(&a, &b), Ordering::Less); // some & some
         assert_eq!(OrderBy::Grade.compare(&a, &c), Ordering::Less); // some & none
