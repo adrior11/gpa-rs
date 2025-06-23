@@ -12,16 +12,20 @@ pub struct Cli {
     #[clap(flatten)]
     pub filter: Option<FilterBy>,
 
+    /// Select columns to display (repeatable)
+    #[arg(short, long, value_enum, num_args = 1.., action = ArgAction::Append)]
+    pub select: Vec<Column>,
+
     /// Order by column (repeatable)
     #[arg(short, long, value_enum, num_args = 1.., action = ArgAction::Append)]
-    pub order_by: Vec<OrderBy>,
+    pub order_by: Vec<Column>,
 
     /// Reverse the final order
     #[arg(short, long)]
     pub reverse: bool,
 
     /// Show only stats (hide the rows)
-    #[arg(short, long)]
+    #[arg(long)]
     pub short: bool,
 }
 
@@ -64,7 +68,7 @@ pub struct FilterBy {
 }
 
 #[derive(ValueEnum, Clone, Debug, PartialEq, Eq)]
-pub enum OrderBy {
+pub enum Column {
     Title,
     Credits,
     Semester,
@@ -84,6 +88,28 @@ impl<T: PartialOrd> NumRange<T> {
             Self::Single(x) => v == x,
             Self::Range(r) => r.contains(v),
         }
+    }
+}
+
+impl Cli {
+    pub fn columns(&self) -> Vec<Column> {
+        let mut cols: Vec<Column> = vec![
+            Column::Title,
+            Column::Credits,
+            Column::Semester,
+            Column::Grade,
+            Column::Completed,
+        ]
+        .into_iter()
+        .collect();
+
+        if self.select.is_empty() {
+            return cols;
+        }
+
+        cols.retain(|c| self.select.contains(c));
+
+        cols
     }
 }
 
@@ -110,6 +136,53 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn parse_cli_args() {
+        let args = Cli::parse_from([
+            "gpa",
+            "--semester",
+            "5",
+            "--select",
+            "title",
+            "grade",
+            "--order-by",
+            "semester",
+            "grade",
+            "--reverse",
+            "--short",
+        ]);
+        assert!(args.filter.is_some());
+        assert_eq!(args.order_by, vec![Column::Semester, Column::Grade]);
+        assert_eq!(args.select, vec![Column::Title, Column::Grade]);
+        assert!(args.reverse);
+        assert!(args.short);
+
+        let cols = args.columns();
+        assert_eq!(cols, vec![Column::Title, Column::Grade]);
+    }
+
+    #[test]
+    fn parse_cli_no_args() {
+        let args = Cli::parse_from([""]);
+        assert!(args.filter.is_none());
+        assert!(args.select.is_empty());
+        assert!(args.order_by.is_empty());
+        assert!(!args.reverse);
+        assert!(!args.short);
+
+        let cols = args.columns();
+        assert_eq!(
+            cols,
+            vec![
+                Column::Title,
+                Column::Credits,
+                Column::Semester,
+                Column::Grade,
+                Column::Completed
+            ]
+        );
+    }
 
     #[test]
     fn parse_single_u16() {

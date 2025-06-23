@@ -1,10 +1,10 @@
-use std::{cmp::Ordering, fs, io::Write, path::PathBuf};
+use std::{cmp::Ordering, fmt::Write, fs, io, path::PathBuf};
 
 use anyhow::Context;
 use colored::Colorize;
 use serde::{Deserialize, Serialize};
 
-use crate::commands::{FilterBy, OrderBy};
+use crate::commands::{Column, FilterBy};
 
 #[allow(clippy::upper_case_acronyms)]
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq)]
@@ -87,11 +87,12 @@ impl GPA {
         }
     }
 
-    pub fn overview<W: Write>(
+    pub fn overview<W: io::Write>(
         &self,
         out: &mut W,
         filter: Option<&FilterBy>,
-        order_by: &[OrderBy],
+        cols: &[Column],
+        order_by: &[Column],
         reverse: bool,
         short: bool,
     ) -> anyhow::Result<()> {
@@ -113,9 +114,9 @@ impl GPA {
             .for_each(|lec| stats.add(lec, &self.grading_system));
 
         if !short {
-            write_header(out)?;
+            write_header(out, cols)?;
             for lec in &rows {
-                self.write_row(out, lec)?;
+                self.write_row(out, cols, lec)?;
             }
             writeln!(out)?;
         }
@@ -126,29 +127,47 @@ impl GPA {
         Ok(())
     }
 
-    fn write_row<W: Write>(&self, w: &mut W, lec: &Lecture) -> anyhow::Result<()> {
-        let grade = match lec.grade {
-            Some(g) if !self.grading_system.is_pass(g) && self.grading_system.ignore_failed => {
-                format!("{g:.1}").red().bold()
-            }
-            Some(g) if self.grading_system.better(g, self.target_average) => {
-                format!("{g:.1}").green()
-            }
-            Some(g) => format!("{g:.1}").red(),
-            None => "-".dimmed(),
-        };
-
-        let flag = if lec.completed { "✓" } else { "" }.dimmed();
-        writeln!(
-            w,
-            " {:<40} {:>7} {:>4} {:>6} {:>3}",
-            lec.title, lec.credits, lec.semester, grade, flag
-        )?;
-
+    fn write_row<W: io::Write>(
+        &self,
+        w: &mut W,
+        cols: &[Column],
+        lec: &Lecture,
+    ) -> anyhow::Result<()> {
+        let mut line = String::new();
+        if cols.contains(&Column::Title) {
+            write!(line, " {:<40}", lec.title)?;
+        }
+        if cols.contains(&Column::Credits) {
+            write!(line, " {:>7}", lec.credits)?;
+        }
+        if cols.contains(&Column::Semester) {
+            write!(line, " {:>4}", lec.semester)?;
+        }
+        if cols.contains(&Column::Grade) {
+            let g = match lec.grade {
+                Some(g) if !self.grading_system.is_pass(g) && self.grading_system.ignore_failed => {
+                    format!("{g:.1}").red().bold()
+                }
+                Some(g) if self.grading_system.better(g, self.target_average) => {
+                    format!("{g:.1}").green()
+                }
+                Some(g) => format!("{g:.1}").red(),
+                None => "-".dimmed(),
+            };
+            write!(line, " {g:>6}")?;
+        }
+        if cols.contains(&Column::Completed) {
+            write!(
+                line,
+                " {:>3}",
+                if lec.completed { "✓" } else { "" }.dimmed()
+            )?;
+        }
+        writeln!(w, "{line}")?;
         Ok(())
     }
 
-    fn write_average<W: Write>(&self, w: &mut W, stats: &Stats) -> anyhow::Result<()> {
+    fn write_average<W: io::Write>(&self, w: &mut W, stats: &Stats) -> anyhow::Result<()> {
         let avg = stats.avg();
         if avg > 0.0 {
             let avg_str = if self.grading_system.better(avg, self.target_average) {
@@ -166,7 +185,7 @@ impl GPA {
         Ok(())
     }
 
-    fn write_progress<W: Write>(
+    fn write_progress<W: io::Write>(
         &self,
         w: &mut W,
         stats: &Stats,
@@ -269,7 +288,7 @@ impl FilterBy {
     }
 }
 
-impl OrderBy {
+impl Column {
     pub fn compare(&self, a: &Lecture, b: &Lecture) -> Ordering {
         match self {
             Self::Title => a.title.cmp(&b.title),
@@ -286,14 +305,32 @@ impl OrderBy {
     }
 }
 
-fn write_header<W: Write>(w: &mut W) -> anyhow::Result<()> {
-    let header_line = format!(
-        " {:<40} {:>7} {:>4} {:>6} {:>3}",
-        "Title", "Credits", "Sem", "Grade", "✓"
-    )
-    .bold();
-    writeln!(w, "{header_line}")?;
-    writeln!(w, "{}", "─".repeat(66).dimmed())?;
+fn write_header<W: io::Write>(w: &mut W, cols: &[Column]) -> anyhow::Result<()> {
+    let mut line = String::new();
+    if cols.contains(&Column::Title) {
+        write!(line, " {:<40}", "Title")?;
+    }
+    if cols.contains(&Column::Credits) {
+        write!(line, " {:>7}", "Credits")?;
+    }
+    if cols.contains(&Column::Semester) {
+        write!(line, " {:>4}", "Sem")?;
+    }
+    if cols.contains(&Column::Grade) {
+        write!(line, " {:>6}", "Grade")?;
+    }
+    if cols.contains(&Column::Completed) {
+        write!(line, " {:>3}", "✓")?;
+    }
+    writeln!(w, "{}", line.bold())?;
+
+    let divider_len = if cols.contains(&Column::Completed) {
+        line.len() - 1
+    } else {
+        line.len() + 1
+    };
+    writeln!(w, "{}", "─".repeat(divider_len).dimmed())?;
+
     Ok(())
 }
 
@@ -328,6 +365,16 @@ mod tests {
             grade,
             completed,
         }
+    }
+
+    fn all_columns() -> Vec<Column> {
+        vec![
+            Column::Title,
+            Column::Credits,
+            Column::Semester,
+            Column::Grade,
+            Column::Completed,
+        ]
     }
 
     #[test]
@@ -387,20 +434,46 @@ mod tests {
     }
 
     #[test]
+    fn write_header_with_all_columns() -> anyhow::Result<()> {
+        let mut buf = Vec::<u8>::new();
+        write_header(&mut buf, &all_columns())?;
+        let out = String::from_utf8(buf)?;
+        assert!(out.contains("Title"));
+        assert!(out.contains("Credits"));
+        assert!(out.contains("Sem"));
+        assert!(out.contains("Grade"));
+        assert!(out.contains("✓"));
+        Ok(())
+    }
+
+    #[test]
+    fn write_header_with_no_selected_columns() -> anyhow::Result<()> {
+        let mut buf = Vec::<u8>::new();
+        write_header(&mut buf, &[])?;
+        let out = String::from_utf8(buf)?;
+        assert!(!out.contains("Title"));
+        assert!(!out.contains("Credits"));
+        assert!(!out.contains("Sem"));
+        assert!(!out.contains("Grade"));
+        assert!(!out.contains("✓"));
+        Ok(())
+    }
+
+    #[test]
     fn order_by_compare() {
         let a = lec("A", 5, 1, Some(1.7), true);
         let b = lec("B", 5, 2, Some(2.3), false);
         let c = lec("C", 5, 2, None, false);
 
-        assert_eq!(OrderBy::Title.compare(&a, &b), Ordering::Less);
-        assert_eq!(OrderBy::Credits.compare(&a, &b), Ordering::Equal);
-        assert_eq!(OrderBy::Semester.compare(&a, &b), Ordering::Less);
-        assert_eq!(OrderBy::Completed.compare(&a, &b), Ordering::Less);
+        assert_eq!(Column::Title.compare(&a, &b), Ordering::Less);
+        assert_eq!(Column::Credits.compare(&a, &b), Ordering::Equal);
+        assert_eq!(Column::Semester.compare(&a, &b), Ordering::Less);
+        assert_eq!(Column::Completed.compare(&a, &b), Ordering::Less);
 
-        assert_eq!(OrderBy::Grade.compare(&a, &b), Ordering::Less); // some & some
-        assert_eq!(OrderBy::Grade.compare(&a, &c), Ordering::Less); // some & none
-        assert_eq!(OrderBy::Grade.compare(&c, &b), Ordering::Greater); // none & some
-        assert_eq!(OrderBy::Grade.compare(&c, &c), Ordering::Equal); // none & none
+        assert_eq!(Column::Grade.compare(&a, &b), Ordering::Less); // some & some
+        assert_eq!(Column::Grade.compare(&a, &c), Ordering::Less); // some & none
+        assert_eq!(Column::Grade.compare(&c, &b), Ordering::Greater); // none & some
+        assert_eq!(Column::Grade.compare(&c, &c), Ordering::Equal); // none & none
     }
 
     #[test]
@@ -489,13 +562,21 @@ mod tests {
                 lec("Algorithms", 6, 1, Some(1.7), true),
                 lec("Calculus", 6, 2, Some(3.3), true),
                 lec("Physics", 8, 2, Some(4.7), true),
-                lec("Project", 10, 3, None, true),
+                lec("Project", 10, 3, None, false),
             ],
             ..Default::default()
         };
 
         let mut buf = Vec::<u8>::new();
-        gpa.overview(&mut buf, None, &[OrderBy::Title], true, false)?;
+
+        gpa.overview(
+            &mut buf,
+            None,
+            &all_columns(),
+            &[Column::Title],
+            true,
+            false,
+        )?;
 
         let out = String::from_utf8(buf)?;
         assert!(out.contains("Algorithms"));
@@ -515,7 +596,7 @@ mod tests {
             title: Some("Math".into()),
             ..Default::default()
         });
-        gpa.overview(&mut buf, filter.as_ref(), &[], false, true)?;
+        gpa.overview(&mut buf, filter.as_ref(), &all_columns(), &[], false, true)?;
 
         let txt = String::from_utf8(buf)?;
         assert!(!txt.contains("Title"));
@@ -530,12 +611,36 @@ mod tests {
         gpa.lectures.push(lec("Project", 5, 1, None, false));
 
         let mut buf = Vec::<u8>::new();
-        gpa.overview(&mut buf, None, &[], false, true)?;
+        gpa.overview(&mut buf, None, &all_columns(), &[], false, true)?;
 
         let txt = String::from_utf8(buf)?;
         assert!(!txt.contains("Title"));
         assert!(!txt.contains("Average"));
         assert!(txt.contains("Progress"));
         Ok(())
+    }
+
+    #[test]
+    fn overview_no_columns() -> anyhow::Result<()> {
+        let mut gpa = GPA::default();
+        gpa.lectures.push(lec("Math", 5, 1, Some(1.3), true));
+        let mut buf = Vec::<u8>::new();
+        gpa.overview(&mut buf, None, &[], &[], false, false)?;
+        let txt = String::from_utf8(buf)?;
+        assert!(!txt.contains("Title"));
+        assert!(!txt.contains("Credits"));
+        assert!(!txt.contains("Sem"));
+        assert!(!txt.contains("Grade"));
+        assert!(!txt.contains("✓"));
+        Ok(())
+    }
+
+    #[test]
+    fn get_lecture_mut_error() {
+        let mut gpa = GPA::default();
+        assert!(gpa.get_lecture_mut(0).is_err());
+        gpa.lectures.push(lec("Math", 5, 1, Some(1.3), true));
+        assert!(gpa.get_lecture_mut(0).is_ok());
+        assert!(gpa.get_lecture_mut(1).is_err());
     }
 }

@@ -23,6 +23,7 @@ fn main() -> anyhow::Result<()> {
             gpa.overview(
                 &mut std::io::stdout(),
                 args.filter.as_ref(),
+                &args.columns(),
                 &args.order_by,
                 args.reverse,
                 args.short,
