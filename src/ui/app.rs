@@ -1,48 +1,87 @@
 // TODO: command pattern for key handling
-// TODO: dynamic layout
-// TODO: if there are no lectures show welcome container instead of records container
 // TODO: dim buf on float & dim rework
 
+use std::{io::Stdout, time::Duration};
+
+use anyhow::Ok;
 use ratatui::{
     buffer::Buffer,
-    crossterm::event::{KeyCode, KeyEvent, KeyModifiers},
+    crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers},
     layout::{Constraint, Layout, Margin, Rect},
+    prelude::CrosstermBackend,
     text::{Line, Span},
     widgets::Widget,
+    Terminal,
 };
 
 use crate::{file_util, model::Gpa};
 
-use super::{message::Message, pages::HomePage, theme::THEME, traits::Page};
+use super::{pages::HomePage, theme::THEME, traits::Page};
 
 pub struct App {
-    gpa: Gpa,
+    running: bool,
     pages: Vec<Box<dyn Page>>,
     focused: usize,
 }
 
-impl App {
-    pub fn new(gpa: Gpa) -> Self {
+impl Default for App {
+    fn default() -> Self {
         Self {
-            gpa,
+            running: true,
             pages: vec![Box::new(HomePage::new())],
             focused: 0,
         }
     }
+}
 
-    pub fn on_key(&mut self, key: KeyEvent) -> anyhow::Result<Message> {
+impl App {
+    pub fn run(
+        &mut self,
+        gpa: &mut Gpa,
+        terminal: &mut Terminal<CrosstermBackend<Stdout>>,
+    ) -> anyhow::Result<()> {
+        while self.running {
+            terminal.draw(|frame| {
+                let area = frame.area();
+                let buf = frame.buffer_mut();
+                self.render(area, buf, gpa);
+            })?;
+
+            if let Some(key) = handle_keypress()? {
+                self.on_key(key, gpa)?;
+            }
+        }
+        Ok(())
+    }
+
+    fn on_key(&mut self, key: KeyEvent, gpa: &mut Gpa) -> anyhow::Result<()> {
         // application-wide key handling
         #[allow(clippy::single_match)]
         match key.code {
             KeyCode::Char('q' | 'Q') if key.modifiers.contains(KeyModifiers::CONTROL) => {
-                self.gpa.save(&file_util::get_config_path())?;
-                return Ok(Message::Quit);
+                gpa.save(&file_util::get_config_path())?;
+                self.running = false;
             }
             _ => {}
         };
 
-        // container-specific key handling
-        self.pages[self.focused].on_key(key)
+        // page-specific key handling
+        self.pages[self.focused].on_key(key, gpa)
+    }
+
+    fn render(&mut self, area: Rect, buf: &mut Buffer, gpa: &Gpa) {
+        let constraints = [
+            Constraint::Length(1),
+            Constraint::Fill(1),
+            Constraint::Length(1),
+        ];
+        let [header_area, page_area, footer_area] = Layout::vertical(constraints)
+            .constraints(constraints)
+            .areas(area);
+
+        self.render_header(header_area, buf);
+        self.pages[self.focused].render(page_area, buf, gpa);
+        self.render_footer(footer_area, buf);
     }
 
     fn render_header(&self, area: Rect, buf: &mut Buffer) {
@@ -56,14 +95,14 @@ impl App {
     }
 
     fn render_footer(&self, area: Rect, buf: &mut Buffer) {
-        let container_cmds = self.pages[self.focused].commands();
+        let page_cmds = self.pages[self.focused].commands();
         let generic_cmds = [
             Span::styled("^q ", THEME.hotkey),
             Span::styled("Quit  ", THEME.text),
         ];
 
         let footer_left = Line::from(
-            container_cmds
+            page_cmds
                 .iter()
                 .chain(generic_cmds.iter())
                 .cloned()
@@ -82,19 +121,16 @@ impl App {
         Widget::render(footer_left, cmd_area, buf);
         Widget::render(footer_right, cmd_area, buf);
     }
+}
 
-    pub fn render(&mut self, area: Rect, buf: &mut Buffer) {
-        let constraints = [
-            Constraint::Length(1),
-            Constraint::Fill(1),
-            Constraint::Length(1),
-        ];
-        let [header_area, container_area, footer_area] = Layout::vertical(constraints)
-            .constraints(constraints)
-            .areas(area);
-
-        self.render_header(header_area, buf);
-        self.pages[self.focused].render(container_area, buf, &self.gpa);
-        self.render_footer(footer_area, buf);
-    }
+fn handle_keypress() -> anyhow::Result<Option<KeyEvent>> {
+    let keypress = if event::poll(Duration::from_millis(500))? {
+        match event::read()? {
+            Event::Key(key) if key.kind == KeyEventKind::Press => Some(key),
+            _ => None,
+        }
+    } else {
+        None
+    };
+    Ok(keypress)
 }

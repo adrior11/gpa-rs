@@ -12,7 +12,7 @@ use time::{Date, OffsetDateTime};
 
 use crate::{
     model::Gpa,
-    ui::{traits::Component, util, Message, THEME},
+    ui::{traits::Component, util, THEME},
 };
 
 pub struct CalendarComponent {
@@ -53,18 +53,18 @@ impl CalendarComponent {
 
 impl Component for CalendarComponent {
     fn render(&mut self, area: Rect, buf: &mut Buffer, gpa: &Gpa, is_focused: bool) {
-        let container_area =
-            util::container_border(area, buf, "Calendar", Some("← . →"), is_focused);
+        let component_area =
+            util::component_border(area, buf, "Calendar", Some("← . →"), is_focused);
         let constraints = [Constraint::Length(1), Constraint::Fill(1)];
         let [header_area, calendar_area] = Layout::vertical(constraints)
             .spacing(1)
-            .areas(container_area);
+            .areas(component_area);
 
         self.render_header(header_area, buf);
         self.render_calendar(calendar_area, buf);
     }
 
-    fn on_key(&mut self, key: KeyEvent, gpa: &mut Gpa) -> anyhow::Result<Message> {
+    fn on_key(&mut self, key: KeyEvent, gpa: &mut Gpa) -> anyhow::Result<()> {
         match key.code {
             KeyCode::Char('.') => {
                 self.date = OffsetDateTime::now_utc().date();
@@ -77,7 +77,7 @@ impl Component for CalendarComponent {
             }
             _ => {}
         }
-        Ok(Message::None)
+        Ok(())
     }
 
     fn commands(&self) -> Vec<Span> {

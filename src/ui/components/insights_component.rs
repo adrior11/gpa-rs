@@ -8,7 +8,7 @@ use ratatui::{
 
 use crate::{
     model::Gpa,
-    ui::{traits::Component, util, Message, THEME},
+    ui::{traits::Component, util, THEME},
 };
 
 pub struct InsightsComponent;
@@ -61,7 +61,7 @@ impl InsightsComponent {
 
 impl Component for InsightsComponent {
     fn render(&mut self, area: Rect, buf: &mut Buffer, gpa: &Gpa, is_focused: bool) {
-        let container_area = util::container_border(area, buf, "Insights", Some("\\"), is_focused);
+        let component_area = util::component_border(area, buf, "Insights", Some("\\"), is_focused);
 
         let constraints = [
             Constraint::Length(2),
@@ -70,14 +70,14 @@ impl Component for InsightsComponent {
         ];
         let [header_area, progress_area, _] = Layout::vertical(constraints)
             .spacing(1)
-            .areas(container_area);
+            .areas(component_area);
 
         self.render_summary(header_area, buf, gpa);
         self.render_progress_bar(progress_area, buf, gpa);
     }
 
-    fn on_key(&mut self, key: KeyEvent, gpa: &mut Gpa) -> anyhow::Result<Message> {
-        Ok(Message::None)
+    fn on_key(&mut self, key: KeyEvent, gpa: &mut Gpa) -> anyhow::Result<()> {
+        Ok(())
     }
 
     fn commands(&self) -> Vec<Span> {

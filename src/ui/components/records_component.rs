@@ -9,7 +9,7 @@ use tui_textarea::TextArea;
 
 use crate::{
     model::Gpa,
-    ui::{message::Message, theme::THEME, traits::Component, util},
+    ui::{theme::THEME, traits::Component, util},
 };
 
 const TAB_HEADERS: [&str; 2] = [" Courses (q) ", " Exams (w) "];
@@ -125,15 +125,15 @@ impl RecordsComponent {
 
 impl Component for RecordsComponent {
     fn render(&mut self, area: Rect, buf: &mut Buffer, gpa: &Gpa, is_focused: bool) {
-        let container_area = util::container_border(area, buf, "Records", None, is_focused);
+        let component_area = util::component_border(area, buf, "Records", None, is_focused);
         let constraints = [
             Constraint::Length(1),
             Constraint::Length(1),
             Constraint::Fill(1),
         ];
         let layout = Layout::vertical(constraints).spacing(1);
-        let [tab_area, filter_area, table_area] = layout.areas(container_area);
-        let [_, div1, div2, _] = layout.spacers(container_area);
+        let [tab_area, filter_area, table_area] = layout.areas(component_area);
+        let [_, div1, div2, _] = layout.spacers(component_area);
 
         self.render_tabs(tab_area, buf);
         util::render_divider(div1, buf);
@@ -146,7 +146,7 @@ impl Component for RecordsComponent {
         }
     }
 
-    fn on_key(&mut self, key: KeyEvent, gpa: &mut Gpa) -> anyhow::Result<Message> {
+    fn on_key(&mut self, key: KeyEvent, gpa: &mut Gpa) -> anyhow::Result<()> {
         match self.focus {
             Focus::Table => match key.code {
                 KeyCode::Char('/') => {
@@ -182,7 +182,7 @@ impl Component for RecordsComponent {
             },
         };
 
-        Ok(Message::None)
+        Ok(())
     }
 
     fn commands(&self) -> Vec<Span> {

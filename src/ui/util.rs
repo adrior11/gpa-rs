@@ -42,7 +42,7 @@ pub fn render_divider(area: Rect, buf: &mut Buffer) {
     Widget::render(div, area, buf);
 }
 
-pub fn container_border(
+pub fn component_border(
     area: Rect,
     buf: &mut Buffer,
     title: &'static str,
@@ -68,7 +68,7 @@ pub fn container_border(
         buf,
     );
 
-    // calculate the inner area of the container
+    // calculate the inner area of the component
     let inner = area.inner(Margin::new(2, 1));
     let [inner_area] = Layout::vertical([Constraint::Fill(1)]).areas(inner);
     inner_area

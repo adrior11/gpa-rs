@@ -10,7 +10,6 @@ use crate::{
     ui::{
         components::{CalendarComponent, InsightsComponent, RecordsComponent, UpcomingComponent},
         traits::{Component, Page},
-        Message,
     },
 };
 
@@ -34,9 +33,6 @@ impl HomePage {
 }
 
 impl Page for HomePage {
-    fn name(&self) -> &str {
-        "Home"
-    }
     fn render(&mut self, area: Rect, buf: &mut Buffer, gpa: &Gpa) {
         let [left, right] = Layout::horizontal([Constraint::Fill(1), Constraint::Percentage(70)])
             .horizontal_margin(2)
@@ -64,19 +60,10 @@ impl Page for HomePage {
         }
     }
 
-    fn on_key(&mut self, key: KeyEvent) -> anyhow::Result<Message> {
+    fn on_key(&mut self, key: KeyEvent, gpa: &mut Gpa) -> anyhow::Result<()> {
+        #![allow(clippy::match_single_binding)]
         match key.code {
-            // focus next component
-            ratatui::crossterm::event::KeyCode::Tab => {
-                self.focused = (self.focused + 1) % self.components.len();
-                Ok(Message::None)
-            }
-            // focus previous component
-            ratatui::crossterm::event::KeyCode::BackTab => {
-                self.focused = (self.focused + self.components.len() - 1) % self.components.len();
-                Ok(Message::None)
-            }
-            _ => self.components[self.focused].on_key(key, &mut Gpa::default()),
+            _ => self.components[self.focused].on_key(key, gpa),
         }
     }
 
