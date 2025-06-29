@@ -73,24 +73,3 @@ impl Default for Theme {
         }
     }
 }
-
-impl Theme {
-    pub fn border_style(&self, is_focused: bool, is_dimmed: bool) -> Style {
-        let s_accent = Style::new().fg(PALETTE.primary_accent);
-        let s_base = Style::new().fg(PALETTE.secondary);
-        match (is_focused, is_dimmed) {
-            (true, true) => s_accent.add_modifier(Modifier::DIM),
-            (true, false) => s_accent,
-            (false, true) => s_base.add_modifier(Modifier::DIM),
-            (false, false) => s_base,
-        }
-    }
-
-    pub fn tab_style(&self, selected: bool) -> Style {
-        let s = Style::new().fg(PALETTE.primary_accent);
-        match selected {
-            true => s.add_modifier(Modifier::BOLD),
-            false => s.add_modifier(Modifier::DIM),
-        }
-    }
-}

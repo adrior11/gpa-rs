@@ -8,11 +8,14 @@ use ratatui::{
         Widget,
     },
 };
-use time::{Date, Duration, OffsetDateTime};
+use time::{Date, OffsetDateTime};
 
-use crate::ui::{component::Component, util, Message, THEME};
+use crate::{
+    model::Gpa,
+    ui::{traits::Component, util, Message, THEME},
+};
 
-pub struct CalendarContainer {
+pub struct CalendarComponent {
     date: Date,
 }
 
@@ -25,7 +28,7 @@ fn prev_month(date: Date) -> Date {
     todo!()
 }
 
-impl CalendarContainer {
+impl CalendarComponent {
     pub fn new() -> Self {
         Self {
             date: OffsetDateTime::now_utc().date(),
@@ -48,10 +51,10 @@ impl CalendarContainer {
     }
 }
 
-impl Component for CalendarContainer {
-    fn render(&mut self, area: Rect, buf: &mut Buffer, is_focused: bool, is_dimmed: bool) {
+impl Component for CalendarComponent {
+    fn render(&mut self, area: Rect, buf: &mut Buffer, gpa: &Gpa, is_focused: bool) {
         let container_area =
-            util::container_border(area, buf, "Calendar", Some("← . →"), is_focused, is_dimmed);
+            util::container_border(area, buf, "Calendar", Some("← . →"), is_focused);
         let constraints = [Constraint::Length(1), Constraint::Fill(1)];
         let [header_area, calendar_area] = Layout::vertical(constraints)
             .spacing(1)
@@ -61,7 +64,7 @@ impl Component for CalendarContainer {
         self.render_calendar(calendar_area, buf);
     }
 
-    fn on_key(&mut self, key: KeyEvent) -> anyhow::Result<Message> {
+    fn on_key(&mut self, key: KeyEvent, gpa: &mut Gpa) -> anyhow::Result<Message> {
         match key.code {
             KeyCode::Char('.') => {
                 self.date = OffsetDateTime::now_utc().date();

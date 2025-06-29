@@ -1,11 +1,12 @@
 use ratatui::{
     buffer::Buffer,
     layout::{Constraint, Layout, Margin, Rect},
+    style::{Modifier, Style},
     text::Span,
     widgets::{Block, BorderType, Widget},
 };
 
-use super::theme::THEME;
+use super::{palette::PALETTE, theme::THEME, util};
 
 pub fn centered_clamp(max_width: u16, outer: Rect) -> Rect {
     let width = max_width.min(outer.width);
@@ -14,6 +15,25 @@ pub fn centered_clamp(max_width: u16, outer: Rect) -> Rect {
         y: outer.y,
         width,
         height: outer.height,
+    }
+}
+
+pub fn border_style(is_focused: bool) -> Style {
+    let s_accent = Style::new().fg(PALETTE.primary_accent);
+    let s_base = Style::new().fg(PALETTE.secondary);
+    if is_focused {
+        s_accent
+    } else {
+        s_base
+    }
+}
+
+pub fn tab_style(selected: bool) -> Style {
+    let s = Style::new().fg(PALETTE.primary_accent);
+    if selected {
+        s.add_modifier(Modifier::BOLD)
+    } else {
+        s.add_modifier(Modifier::DIM)
     }
 }
 
@@ -28,14 +48,13 @@ pub fn container_border(
     title: &'static str,
     footer: Option<&'static str>,
     is_focused: bool,
-    is_dimmed: bool,
 ) -> Rect {
     let title_top = format!("─ {title} ");
     let footer = footer
         .map(|f| format!(" {f} ─"))
         .unwrap_or_else(|| "─".to_owned());
 
-    let border_style = THEME.border_style(is_focused, is_dimmed);
+    let border_style = util::border_style(is_focused);
     let title_line = Span::styled(title_top, border_style).into_left_aligned_line();
     let footer_line = Span::styled(footer, border_style).into_right_aligned_line();
 

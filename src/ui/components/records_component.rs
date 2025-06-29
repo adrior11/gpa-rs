@@ -7,7 +7,10 @@ use ratatui::{
 };
 use tui_textarea::TextArea;
 
-use crate::ui::{component::Component, message::Message, theme::THEME, types::Model, util};
+use crate::{
+    model::Gpa,
+    ui::{message::Message, theme::THEME, traits::Component, util},
+};
 
 const TAB_HEADERS: [&str; 2] = [" Courses (q) ", " Exams (w) "];
 const FILTER_PLACEHOLDER: &str = "Filter courses";
@@ -19,16 +22,15 @@ enum Focus {
     Filter,
 }
 
-pub struct RecordsContainer {
-    model: Model,
+pub struct RecordsComponent {
     selected_state: usize,
     selected_page: usize,
     focus: Focus,
     filter: TextArea<'static>,
 }
 
-impl RecordsContainer {
-    pub fn new(model: Model) -> Self {
+impl RecordsComponent {
+    pub fn new() -> Self {
         let mut ta = TextArea::default();
         // TODO: adjust cursor style + blink
         // TODO: adjust set text to not have underline
@@ -37,7 +39,6 @@ impl RecordsContainer {
         ta.set_placeholder_text(FILTER_PLACEHOLDER);
 
         Self {
-            model,
             selected_state: 0,
             selected_page: 0,
             focus: Focus::default(),
@@ -63,7 +64,7 @@ impl RecordsContainer {
                 buf.set_style(tab_area, THEME.background);
             }
 
-            let tab_style = THEME.tab_style(focused);
+            let tab_style = util::tab_style(focused);
             let line = Span::styled(tab, tab_style).into_centered_line();
             Widget::render(line, tab_area, buf);
         }
@@ -90,10 +91,10 @@ impl RecordsContainer {
         Widget::render(&self.filter, area, buf);
     }
 
-    fn render_table(&self, area: Rect, buf: &mut Buffer, is_focused: bool) {
+    fn render_table(&self, area: Rect, buf: &mut Buffer, gpa: &Gpa, is_focused: bool) {
         let visible_rows = area.height.saturating_sub(1) as usize;
         let half = visible_rows / 2;
-        let total = self.model.borrow().courses.len();
+        let total = gpa.courses.len();
 
         let offset = if self.selected_state <= half {
             0
@@ -111,7 +112,6 @@ impl RecordsContainer {
                 None
             });
 
-        let gpa = self.model.borrow();
         let header_row =
             Row::new(vec!["Title", "Credits", "Semester", "Grade", "Done"]).style(THEME.subtext);
         let table = gpa
@@ -123,10 +123,9 @@ impl RecordsContainer {
     }
 }
 
-impl Component for RecordsContainer {
-    fn render(&mut self, area: Rect, buf: &mut Buffer, is_focused: bool, is_dimmed: bool) {
-        let container_area =
-            util::container_border(area, buf, "Records", None, is_focused, is_dimmed);
+impl Component for RecordsComponent {
+    fn render(&mut self, area: Rect, buf: &mut Buffer, gpa: &Gpa, is_focused: bool) {
+        let container_area = util::container_border(area, buf, "Records", None, is_focused);
         let constraints = [
             Constraint::Length(1),
             Constraint::Length(1),
@@ -141,13 +140,13 @@ impl Component for RecordsContainer {
         self.render_filter(filter_area, buf);
         util::render_divider(div2, buf);
         match self.selected_page {
-            0 => self.render_table(table_area, buf, is_focused),
+            0 => self.render_table(table_area, buf, gpa, is_focused),
             1 => {} // TODO: exams page
             _ => unreachable!(),
         }
     }
 
-    fn on_key(&mut self, key: KeyEvent) -> anyhow::Result<Message> {
+    fn on_key(&mut self, key: KeyEvent, gpa: &mut Gpa) -> anyhow::Result<Message> {
         match self.focus {
             Focus::Table => match key.code {
                 KeyCode::Char('/') => {
@@ -160,7 +159,7 @@ impl Component for RecordsContainer {
                     self.selected_state = self
                         .selected_state
                         .saturating_add(1)
-                        .min(self.model.borrow().courses.len().saturating_sub(1));
+                        .min(gpa.courses.len().saturating_sub(1));
                 }
                 KeyCode::Char('q' | 'Q') => {
                     self.selected_state = 0;

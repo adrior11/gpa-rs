@@ -1,11 +1,11 @@
 mod app;
-mod component;
-mod containers;
+mod command;
+mod components;
 mod message;
+mod pages;
 mod palette;
-mod pane;
 mod theme;
-mod types;
+mod traits;
 mod util;
 
 pub use app::App;

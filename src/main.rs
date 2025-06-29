@@ -30,8 +30,6 @@ fn main() -> anyhow::Result<()> {
     let args = Cli::parse();
     let mut gpa = file_util::load_or_create_config()?;
 
-    gpa.save(&file_util::get_config_path())?;
-
     match args.command {
         Some(Command::Settings) => {
             match prompts::start(&mut gpa) {

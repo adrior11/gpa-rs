@@ -8,14 +8,12 @@ use super::{exam::Exam, Progress};
 
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq)]
 pub struct Course {
-    #[serde(default = "Uuid::new_v4")]
     pub id: Uuid,
     pub title: String,
     pub credits: u16,
     pub semester: u16,
     pub grade: Option<f32>,
     pub completed: bool, // NOTE: rethink state handling
-    #[serde(default = "Vec::new")]
     pub exams: Vec<Exam>,
     pub progress: Option<Progress>,
 }

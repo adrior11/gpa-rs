@@ -2,7 +2,6 @@
 // TODO: dynamic layout
 // TODO: if there are no lectures show welcome container instead of records container
 // TODO: dim buf on float & dim rework
-use std::{cell::RefCell, rc::Rc};
 
 use ratatui::{
     buffer::Buffer,
@@ -12,47 +11,23 @@ use ratatui::{
     widgets::Widget,
 };
 
-use crate::model::Gpa;
+use crate::{file_util, model::Gpa};
 
-use super::{
-    containers::{CalendarContainer, InsightsContainer, RecordsContainer, UpcomingContainer},
-    message::Message,
-    pane::{Pane, PaneId},
-    theme::THEME,
-};
+use super::{message::Message, pages::HomePage, theme::THEME, traits::Page};
 
-// NOTE: app must persists gpa in order to save changes
 pub struct App {
-    panes: Vec<Pane>,
-    focused: PaneId,
+    gpa: Gpa,
+    pages: Vec<Box<dyn Page>>,
+    focused: usize,
 }
 
 impl App {
     pub fn new(gpa: Gpa) -> Self {
-        let model = Rc::new(RefCell::new(gpa));
         Self {
-            panes: vec![
-                Pane::new(PaneId::Upcoming, UpcomingContainer::new()),
-                Pane::new(PaneId::Calendar, CalendarContainer::new()),
-                Pane::new(PaneId::Insights, InsightsContainer::new(model.clone())),
-                Pane::new(PaneId::Courses, RecordsContainer::new(model)),
-            ],
-            focused: PaneId::Courses,
+            gpa,
+            pages: vec![Box::new(HomePage::new())],
+            focused: 0,
         }
-    }
-
-    fn get_pane(&self, id: PaneId) -> &Pane {
-        self.panes
-            .iter()
-            .find(|pane| pane.id == id)
-            .expect("Pane not found")
-    }
-
-    fn get_pane_mut(&mut self, id: PaneId) -> &mut Pane {
-        self.panes
-            .iter_mut()
-            .find(|pane| pane.id == id)
-            .expect("Pane not found")
     }
 
     pub fn on_key(&mut self, key: KeyEvent) -> anyhow::Result<Message> {
@@ -60,14 +35,14 @@ impl App {
         #[allow(clippy::single_match)]
         match key.code {
             KeyCode::Char('q' | 'Q') if key.modifiers.contains(KeyModifiers::CONTROL) => {
-                return Ok(Message::Quit)
+                self.gpa.save(&file_util::get_config_path())?;
+                return Ok(Message::Quit);
             }
             _ => {}
         };
 
         // container-specific key handling
-        let pane = self.get_pane_mut(self.focused);
-        pane.container.on_key(key)
+        self.pages[self.focused].on_key(key)
     }
 
     fn render_header(&self, area: Rect, buf: &mut Buffer) {
@@ -80,34 +55,8 @@ impl App {
         Widget::render(header, area.inner(Margin::new(2, 0)), buf);
     }
 
-    fn render_containers(&mut self, area: Rect, buf: &mut Buffer) {
-        let [left, right] = Layout::horizontal([Constraint::Fill(1), Constraint::Percentage(70)])
-            .horizontal_margin(2)
-            .vertical_margin(1)
-            .areas(area);
-
-        let [left_top, insights_area] =
-            Layout::vertical([Constraint::Length(11), Constraint::Fill(1)]).areas(left);
-
-        let [upcoming_area, calendar_area] =
-            Layout::horizontal([Constraint::Fill(1), Constraint::Length(30)]).areas(left_top);
-
-        let [_, records_area] =
-            Layout::vertical([Constraint::Length(5), Constraint::Fill(1)]).areas(right);
-
-        for (pane, pane_area) in self
-            .panes
-            .iter_mut()
-            // zip the panes with their respective areas in order of declaration
-            .zip([upcoming_area, calendar_area, insights_area, records_area])
-        {
-            let is_focused = self.focused == pane.id;
-            pane.container.render(pane_area, buf, is_focused, false);
-        }
-    }
-
     fn render_footer(&self, area: Rect, buf: &mut Buffer) {
-        let container_cmds = self.get_pane(self.focused).container.commands();
+        let container_cmds = self.pages[self.focused].commands();
         let generic_cmds = [
             Span::styled("^q ", THEME.hotkey),
             Span::styled("Quit  ", THEME.text),
@@ -145,7 +94,7 @@ impl App {
             .areas(area);
 
         self.render_header(header_area, buf);
-        self.render_containers(container_area, buf);
+        self.pages[self.focused].render(container_area, buf, &self.gpa);
         self.render_footer(footer_area, buf);
     }
 }

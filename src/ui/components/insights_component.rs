@@ -6,22 +6,23 @@ use ratatui::{
     widgets::Widget,
 };
 
-use crate::ui::{component::Component, types::Model, util, Message, THEME};
+use crate::{
+    model::Gpa,
+    ui::{traits::Component, util, Message, THEME},
+};
 
-pub struct InsightsContainer {
-    model: Model,
-}
+pub struct InsightsComponent;
 
-impl InsightsContainer {
-    pub fn new(model: Model) -> Self {
-        Self { model }
+impl InsightsComponent {
+    pub fn new() -> Self {
+        Self {}
     }
 
-    fn render_summary(&mut self, area: Rect, buf: &mut Buffer) {
+    fn render_summary(&mut self, area: Rect, buf: &mut Buffer, gpa: &Gpa) {
         let [top_area, bottom_area] =
             Layout::vertical([Constraint::Fill(1), Constraint::Fill(1)]).areas(area);
 
-        let avg_str = format!("{:.2}", self.model.borrow().get_stats().avg());
+        let avg_str = format!("{:.2}", gpa.get_stats().avg());
         // let credits_str = format!("{}", self.model.borrow().get_stats().total());
 
         let left_header = Span::styled("Weighted Average", THEME.subtext).into_left_aligned_line();
@@ -37,11 +38,10 @@ impl InsightsContainer {
         // Widget::render(right_summary, bottom_area, buf);
     }
 
-    fn render_progress_bar(&mut self, area: Rect, buf: &mut Buffer) {
+    fn render_progress_bar(&mut self, area: Rect, buf: &mut Buffer, gpa: &Gpa) {
         let [info_area, bar_area] =
             Layout::vertical([Constraint::Fill(1), Constraint::Fill(1)]).areas(area);
 
-        let gpa = self.model.borrow();
         let stats = gpa.get_stats();
         let bar = progress_bar(stats.total(), stats.all, area.width.into());
 
@@ -59,10 +59,9 @@ impl InsightsContainer {
     }
 }
 
-impl Component for InsightsContainer {
-    fn render(&mut self, area: Rect, buf: &mut Buffer, is_focused: bool, is_dimmed: bool) {
-        let container_area =
-            util::container_border(area, buf, "Insights", Some("\\"), is_focused, is_dimmed);
+impl Component for InsightsComponent {
+    fn render(&mut self, area: Rect, buf: &mut Buffer, gpa: &Gpa, is_focused: bool) {
+        let container_area = util::container_border(area, buf, "Insights", Some("\\"), is_focused);
 
         let constraints = [
             Constraint::Length(2),
@@ -73,11 +72,11 @@ impl Component for InsightsContainer {
             .spacing(1)
             .areas(container_area);
 
-        self.render_summary(header_area, buf);
-        self.render_progress_bar(progress_area, buf);
+        self.render_summary(header_area, buf, gpa);
+        self.render_progress_bar(progress_area, buf, gpa);
     }
 
-    fn on_key(&mut self, key: KeyEvent) -> anyhow::Result<Message> {
+    fn on_key(&mut self, key: KeyEvent, gpa: &mut Gpa) -> anyhow::Result<Message> {
         Ok(Message::None)
     }
 
