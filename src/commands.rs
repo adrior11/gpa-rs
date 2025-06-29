@@ -32,12 +32,6 @@ pub struct Cli {
 #[derive(Subcommand, Debug, PartialEq, Eq)]
 #[clap(args_conflicts_with_subcommands = true)]
 pub enum Command {
-    /// Launch interactive TUI for managing courses and GPA configuration
-    ///
-    /// Aliases: [cfg, config, set]
-    #[command(alias = "cfg", alias = "config", alias = "set")]
-    Settings,
-
     #[command(alias = "t")]
     Tui,
 }

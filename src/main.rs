@@ -2,9 +2,7 @@
 mod commands;
 mod file_util;
 mod model;
-mod prompts;
 mod ui;
-mod utils;
 
 use std::time::Duration;
 
@@ -28,15 +26,9 @@ fn handle_keypress() -> anyhow::Result<Option<KeyEvent>> {
 
 fn main() -> anyhow::Result<()> {
     let args = Cli::parse();
-    let mut gpa = file_util::load_or_create_config()?;
+    let gpa = file_util::load_or_create_config()?;
 
     match args.command {
-        Some(Command::Settings) => {
-            match prompts::start(&mut gpa) {
-                Err(e) if utils::was_interrupted(&*e) => Ok(()),
-                other => other,
-            }?;
-        }
         Some(Command::Tui) => {
             let mut app = App::new(gpa);
             let mut terminal = ratatui::init();
