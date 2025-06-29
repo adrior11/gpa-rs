@@ -37,6 +37,9 @@ pub enum Command {
     /// Aliases: [cfg, config, set]
     #[command(alias = "cfg", alias = "config", alias = "set")]
     Settings,
+
+    #[command(alias = "t")]
+    Tui,
 }
 
 #[derive(Args, Clone, Debug, Default, PartialEq)]
@@ -69,7 +72,7 @@ pub struct FilterBy {
 
 #[derive(ValueEnum, Clone, Debug, PartialEq, Eq)]
 pub enum Column {
-    Title,
+    Title = 0,
     Credits,
     Semester,
     Grade,

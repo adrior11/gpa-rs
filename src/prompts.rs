@@ -3,11 +3,11 @@ use colored::Colorize;
 
 use crate::{
     file_util,
-    gpa::{Lecture, GPA},
+    model::{Course, Gpa},
     utils,
 };
 
-pub fn start(gpa: &mut GPA) -> anyhow::Result<()> {
+pub fn start(gpa: &mut Gpa) -> anyhow::Result<()> {
     ctrlc::set_handler(move || {}).expect("setting Ctrl-C handler");
 
     cliclack::intro("GPA-RS – personal GPA tracker")?;
@@ -34,7 +34,7 @@ pub fn start(gpa: &mut GPA) -> anyhow::Result<()> {
     Ok(())
 }
 
-fn add(gpa: &mut GPA) -> anyhow::Result<()> {
+fn add(gpa: &mut Gpa) -> anyhow::Result<()> {
     let mut title: String = Input::new("Course Title:")
         .placeholder("Algorithms & Data Structures")
         .validate(|input: &String| {
@@ -73,13 +73,7 @@ fn add(gpa: &mut GPA) -> anyhow::Result<()> {
         .initial_value(grade.is_some())
         .interact()?;
 
-    gpa.add_lecture(Lecture {
-        title,
-        credits,
-        semester,
-        grade,
-        completed,
-    });
+    gpa.add_course(Course::new(title, credits, semester, grade, completed));
     if let Err(e) = gpa.save(&file_util::get_config_path()) {
         cliclack::outro_cancel("Could not save course.")?;
         return Err(e);
@@ -88,14 +82,14 @@ fn add(gpa: &mut GPA) -> anyhow::Result<()> {
     Ok(())
 }
 
-fn edit(gpa: &mut GPA) -> anyhow::Result<()> {
-    if gpa.lectures.is_empty() {
+fn edit(gpa: &mut Gpa) -> anyhow::Result<()> {
+    if gpa.courses.is_empty() {
         cliclack::outro_cancel("No courses yet.")?;
         return Ok(());
     }
 
     let options = gpa
-        .lectures
+        .courses
         .iter()
         .enumerate()
         .map(|(i, l)| {
@@ -117,34 +111,39 @@ fn edit(gpa: &mut GPA) -> anyhow::Result<()> {
     .interact()?
     .parse()?;
 
-    let lec = gpa.get_lecture_mut(idx)?;
+    let course = gpa.get_course_mut(idx)?;
 
     let fields = MultiSelect::new(format!(
         "Select the fields you want to change: {}",
         "(space to toggle)".dimmed()
     ))
-    .item("title", "Title", format!("current {}", lec.title))
-    .item("credits", "Credits", format!("current {}", lec.credits))
-    .item("semester", "Semester", format!("current {}", lec.semester))
+    .item("title", "Title", format!("current {}", course.title))
+    .item("credits", "Credits", format!("current {}", course.credits))
+    .item(
+        "semester",
+        "Semester",
+        format!("current {}", course.semester),
+    )
     .item(
         "grade",
         "Grade",
         format!(
             "current {}",
-            lec.grade
+            course
+                .grade
                 .map_or("not graded".to_string(), |g| g.to_string())
         ),
     )
     .item(
         "completed",
         "Completed",
-        format!("current {}", if lec.completed { "yes" } else { "no" }),
+        format!("current {}", if course.completed { "yes" } else { "no" }),
     )
     .interact()?;
 
     if fields.contains(&"title") {
         let title = Input::new("New title:")
-            .placeholder(&lec.title)
+            .placeholder(&course.title)
             .validate(|input: &String| {
                 if input.trim().is_empty() {
                     Err("Title is required")
@@ -153,26 +152,26 @@ fn edit(gpa: &mut GPA) -> anyhow::Result<()> {
                 }
             })
             .interact()
-            .unwrap_or_else(|_| lec.title.clone());
-        lec.title = title.trim().to_string();
+            .unwrap_or_else(|_| course.title.clone());
+        course.title = title.trim().to_string();
     }
     if fields.contains(&"credits") {
-        lec.credits = Input::new("New credits:")
-            .placeholder(&lec.credits.to_string())
+        course.credits = Input::new("New credits:")
+            .placeholder(&course.credits.to_string())
             .interact()
-            .unwrap_or(lec.credits);
+            .unwrap_or(course.credits);
     }
     if fields.contains(&"semester") {
-        lec.semester = Input::new("New semester:")
-            .placeholder(&lec.semester.to_string())
+        course.semester = Input::new("New semester:")
+            .placeholder(&course.semester.to_string())
             .interact()
-            .unwrap_or(lec.semester);
+            .unwrap_or(course.semester);
     }
     if fields.contains(&"grade") {
         let grade_str: String =
             Input::new(format!("New grade: {}", "(leave blank to clear)".dimmed()))
                 .required(false)
-                .placeholder(&lec.grade.map_or_else(String::new, |g| format!("{g:.2}")))
+                .placeholder(&course.grade.map_or_else(String::new, |g| format!("{g:.2}")))
                 .validate(|s: &String| {
                     if s.trim().is_empty() {
                         return Ok(());
@@ -182,17 +181,17 @@ fn edit(gpa: &mut GPA) -> anyhow::Result<()> {
                         .map_err(|e| e.to_string())
                 })
                 .interact()?;
-        lec.grade = if grade_str.trim().is_empty() {
+        course.grade = if grade_str.trim().is_empty() {
             None
         } else {
             Some(utils::parse_non_negative_grade(&grade_str)?)
         };
     }
     if fields.contains(&"completed") {
-        lec.completed = Confirm::new("Completed?")
-            .initial_value(lec.completed)
+        course.completed = Confirm::new("Completed?")
+            .initial_value(course.completed)
             .interact()
-            .unwrap_or(lec.completed);
+            .unwrap_or(course.completed);
     }
 
     if let Err(e) = gpa.save(&file_util::get_config_path()) {
@@ -203,17 +202,17 @@ fn edit(gpa: &mut GPA) -> anyhow::Result<()> {
     Ok(())
 }
 
-fn delete(gpa: &mut GPA) -> anyhow::Result<()> {
-    if gpa.lectures.is_empty() {
+fn delete(gpa: &mut Gpa) -> anyhow::Result<()> {
+    if gpa.courses.is_empty() {
         cliclack::outro_cancel("Nothing to delete.")?;
         return Ok(());
     }
 
     let options = gpa
-        .lectures
+        .courses
         .iter()
         .enumerate()
-        .map(|(idx, lec)| (idx.to_string(), lec.title.clone(), ""))
+        .map(|(idx, course)| (idx.to_string(), course.title.clone(), ""))
         .collect::<Vec<_>>();
 
     let idx: usize = Select::new("Select a course to delete:")
@@ -223,13 +222,18 @@ fn delete(gpa: &mut GPA) -> anyhow::Result<()> {
         .interact()?
         .parse()?;
 
-    let lec = gpa
-        .lectures
+    let course = gpa
+        .courses
         .get(idx)
-        .ok_or_else(|| anyhow::anyhow!("No lecture at index {idx}"))?;
+        .ok_or_else(|| anyhow::anyhow!("No course at index {idx}"))?;
 
-    if Confirm::new(format!("Delete \"{}\"?  This cannot be undone.", lec.title)).interact()? {
-        gpa.delete_lecture(idx)?;
+    if Confirm::new(format!(
+        "Delete \"{}\"?  This cannot be undone.",
+        course.title
+    ))
+    .interact()?
+    {
+        gpa.delete_course(idx)?;
         if let Err(e) = gpa.save(&file_util::get_config_path()) {
             cliclack::outro_cancel("Could not delete course.")?;
             return Err(e);
@@ -240,7 +244,7 @@ fn delete(gpa: &mut GPA) -> anyhow::Result<()> {
     Ok(())
 }
 
-fn config(gpa: &mut GPA) -> anyhow::Result<()> {
+fn config(gpa: &mut Gpa) -> anyhow::Result<()> {
     let fields = MultiSelect::new(format!(
         "Select the configurations you want to update: {}",
         "(space to toggle)".dimmed()

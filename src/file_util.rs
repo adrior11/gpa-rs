@@ -1,8 +1,10 @@
+// NOTE: maybe we should completly switch to SQL for storing the GPA data?
+// TODO: add dev-mode via cfg/flag, so we can test locally without writing to actual gpa.json
 use std::{fs, path::PathBuf};
 
 use anyhow::Context;
 
-use crate::gpa::GPA;
+use crate::model::Gpa;
 
 const APP_NAME: &str = "gpa-rs";
 const CONFIG_FILE: &str = "gpa.json";
@@ -14,20 +16,20 @@ pub fn get_config_path() -> PathBuf {
     path
 }
 
-pub fn load_or_create_config() -> anyhow::Result<GPA> {
+pub fn load_or_create_config() -> anyhow::Result<Gpa> {
     let config_path = get_config_path();
 
     if !config_path.exists() {
         ensure_config_dir()
             .with_context(|| format!("creating {:?}", config_path.parent().unwrap()))?;
-        let default_gpa = GPA::default();
+        let default_gpa = Gpa::default();
         let json = serde_json::to_string_pretty(&default_gpa)?;
         fs::write(&config_path, json).with_context(|| format!("writing {config_path:?}"))?;
     }
 
     let json: String =
         fs::read_to_string(&config_path).with_context(|| format!("reading {config_path:?}"))?;
-    let gpa: GPA =
+    let gpa: Gpa =
         serde_json::from_str(&json).with_context(|| format!("parsing {config_path:?}"))?;
     Ok(gpa)
 }
@@ -45,7 +47,7 @@ mod tests {
 
     use tempfile::TempDir;
 
-    use crate::gpa::Lecture;
+    use crate::model::Course;
 
     use super::*;
 
@@ -67,7 +69,7 @@ mod tests {
         let gpa = load_or_create_config().unwrap();
         assert!(cfg.exists());
         assert_eq!(gpa.target_average, 2.0);
-        assert_eq!(gpa.lectures.len(), 0);
+        assert_eq!(gpa.courses.len(), 0);
     }
 
     #[test]
@@ -79,13 +81,13 @@ mod tests {
         let cfg = get_config_path();
         fs::create_dir_all(cfg.parent().unwrap()).unwrap();
 
-        let gpa = GPA::default();
+        let gpa = Gpa::default();
         let json = serde_json::to_string_pretty(&gpa).unwrap();
         fs::write(&cfg, json).unwrap();
 
         let loaded_gpa = load_or_create_config().unwrap();
         assert_eq!(loaded_gpa.target_average, gpa.target_average);
-        assert_eq!(loaded_gpa.lectures.len(), gpa.lectures.len());
+        assert_eq!(loaded_gpa.courses.len(), gpa.courses.len());
     }
 
     #[test]
@@ -145,24 +147,30 @@ mod tests {
         let cfg = get_config_path();
         assert!(!cfg.exists());
 
-        let mut g = GPA::default();
+        let mut g = Gpa::default();
         let loaded = load_or_create_config().unwrap();
         assert!(cfg.exists());
         assert_eq!(g, loaded);
 
-        g.lectures.push(Lecture {
+        g.courses.push(Course {
+            id: uuid::Uuid::new_v4(),
             title: "Calculus".into(),
             credits: 5,
             semester: 2,
             grade: None,
             completed: false,
+            exams: Vec::new(),
+            progress: None,
         });
-        g.lectures.push(Lecture {
+        g.courses.push(Course {
+            id: uuid::Uuid::new_v4(),
             title: "Algorithms".into(),
             credits: 5,
             semester: 2,
             grade: None,
             completed: false,
+            exams: Vec::new(),
+            progress: None,
         });
 
         g.save(&cfg).unwrap();
@@ -177,7 +185,7 @@ mod tests {
         let dir_as_file: PathBuf = tmp.path().join("should_be_file");
         fs::create_dir_all(&dir_as_file).unwrap();
 
-        let gpa = GPA::default();
+        let gpa = Gpa::default();
         let err = gpa.save(&dir_as_file).unwrap_err();
 
         let msg = format!("{err:#}");
