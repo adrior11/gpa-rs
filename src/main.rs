@@ -1,23 +1,23 @@
 mod commands;
 mod file_util;
-mod gpa;
-mod prompts;
-mod utils;
+mod model;
+mod ui;
 
 use clap::Parser;
 
 use commands::{Cli, Command};
+use ui::App;
 
 fn main() -> anyhow::Result<()> {
     let args = Cli::parse();
     let mut gpa = file_util::load_or_create_config()?;
 
     match args.command {
-        Some(Command::Settings) => {
-            match prompts::start(&mut gpa) {
-                Err(e) if utils::was_interrupted(&*e) => Ok(()),
-                other => other,
-            }?;
+        Some(Command::Tui) => {
+            let mut app = App::default();
+            let mut terminal = ratatui::init();
+            app.run(&mut gpa, &mut terminal)?;
+            ratatui::restore();
         }
         None => {
             gpa.overview(
